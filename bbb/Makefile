@@ -21,7 +21,7 @@ INCLUDES=-I$(LIB)/scrambler -I$(LIB)/rscode-1.3
 CXX?=g++
 CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x $(INCLUDES)
-LDFLAGS+=-L$(BIN)
+LDFLAGS+=-L$(BIN) -Wl,-rpath,$(shell pwd)/bin
 LDLIBS=
 
 # external library targets
