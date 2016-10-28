@@ -4,11 +4,15 @@
 #define ANODE 8
 //define CATHODE
 
+#define IR_OUT 3
+#define IR_GND 4
+#define IR_VCC 5
+
 uint32_t pattern[] = { 
     0x000000, // off
     0xff0000, // red
-    0xffa500, // orange
-    0xffff00, // yellow
+    0xff2000, // orange
+    0xff9000, // yellow
     0x00ff00, // green
     0x0000ff, // blue
     0x500050, // purple
@@ -27,6 +31,17 @@ void setup() {
   pinMode(RED, OUTPUT);
   pinMode(GREEN, OUTPUT);
   pinMode(BLUE, OUTPUT);
+
+  pinMode(IR_OUT, INPUT);
+  attachInterrupt(digitalPinToInterrupt(IR_OUT), irReceive, RISING);
+  
+  pinMode(IR_GND, OUTPUT);
+  digitalWrite(IR_GND, LOW);
+  
+  pinMode(IR_VCC, OUTPUT);
+  digitalWrite(IR_VCC, HIGH);
+
+  Serial.begin(115200);
 }
 
 void loop() {
@@ -42,13 +57,17 @@ void setColor(uint32_t rgb) {
   uint8_t blue = rgb & 0xff;
 
   #ifdef ANODE
-    red = 255 - red;
-    green = 255 - green;
-    blue = 255 - blue;
+    red = ~red;
+    green = ~green;
+    blue = ~blue;
   #endif
 
   analogWrite(RED, red);
   analogWrite(GREEN, green);
   analogWrite(BLUE, blue);  
+}
+
+void irReceive() {
+  Serial.print('.');
 }
 
