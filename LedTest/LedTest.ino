@@ -8,7 +8,7 @@
 #define IR_GND 4
 #define IR_VCC 5
 
-uint32_t pattern[] = { 
+uint32_t pattern[] = {
     0x000000, // off
     0xff0000, // red
     0xff2000, // orange
@@ -52,9 +52,9 @@ void loop() {
 }
 
 void setColor(uint32_t rgb) {
-  uint8_t red = (rgb >> 16) & 0xff;
-  uint8_t green = (rgb >> 8) & 0xff;
-  uint8_t blue = rgb & 0xff;
+  uint8_t red = rgb >> 16;
+  uint8_t green = rgb >> 8;
+  uint8_t blue = rgb;
 
   #ifdef ANODE
     red = ~red;
@@ -68,6 +68,6 @@ void setColor(uint32_t rgb) {
 }
 
 void irReceive() {
-  Serial.print('.');
+  UDR0 = '.';
 }
 
