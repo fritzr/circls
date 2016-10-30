@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">CIRCLS Client</string>
+    <string name="console_placeholder">Console:\n</string>
+</resources>
