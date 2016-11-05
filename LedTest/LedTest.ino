@@ -52,19 +52,13 @@ void loop() {
 }
 
 void setColor(uint32_t rgb) {
-  uint8_t red = rgb >> 16;
-  uint8_t green = rgb >> 8;
-  uint8_t blue = rgb;
-
   #ifdef ANODE
-    red = ~red;
-    green = ~green;
-    blue = ~blue;
+    rgb = ~rgb;
   #endif
 
-  analogWrite(RED, red);
-  analogWrite(GREEN, green);
-  analogWrite(BLUE, blue);  
+  analogWrite(RED, rgb >> 16);
+  analogWrite(GREEN, rgb >> 8);
+  analogWrite(BLUE, rgb);
 }
 
 void irReceive() {
