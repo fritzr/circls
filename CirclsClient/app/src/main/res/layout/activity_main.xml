@@ -14,20 +14,26 @@
         android:typeface="monospace"
         android:textSize="@dimen/console_text_size"
         android:textColor="@color/console_text"
-        android:singleLine="false"
         android:scrollbarAlwaysDrawVerticalTrack="true"
         android:inputType="textMultiLine"
         android:layout_height="120dp" />
 
+    <org.opencv.android.JavaCameraView
+        android:layout_width="320dp"
+        android:layout_height="240dp"
+        android:id="@+id/surface_view"
+        android:layout_below="@+id/console"
+        android:layout_centerHorizontal="true" />
+
     <Button
         android:id="@+id/transmit_button"
-        android:layout_centerHorizontal="true"
-        android:layout_centerVertical="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textSize="48sp"
         android:gravity="center"
         android:background="@drawable/button_states"
-        android:text="IR"/>
+        android:text="Scan"
+        android:layout_below="@+id/surface_view"
+        android:layout_centerHorizontal="true" />
 
 </RelativeLayout>
