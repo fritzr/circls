@@ -45,7 +45,7 @@ PWM::PWM(int ehrpwmX, int subX)
        *
        * Note the export number follows the below calculation.
        * */
-      ehrpwmX + subX + (ehrpwmX > 0 ? 1 : 0)),
+      (2*ehrpwmX) + subX + (ehrpwmX > 0 ? 1 : 0)),
   analogFrequency (1000), analogMax (3.3)
 {
   setFrequency (analogFrequency);
