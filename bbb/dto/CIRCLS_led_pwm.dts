@@ -12,13 +12,19 @@
 *
 * Modified again by Fritz Reese for a custom RGB LED circuit.
 *
-* Uses pins 14,16,21,22 as PWM on the BBB.
+* Note until I can figure out the right way to "expose" the duty etc. pins as
+* they are in the conveniently missing PWM modules, here is a reference for the
+* 'export' pins to use for /sys/class/pwm.
 *
-*   PIN GPIO	function
-*   14	GPIO_3	EHRPWM1A
-*   16	GPIO_2	EHRPWM1B
-*   21	GPIO_49	EHRPWM0B
-*   22	GPIO_15	EHRPWM0A
+* export	name		pins
+* 0		ehrpwm0a	p9.22, p9.31
+* 1		ehrpwm0b	p9.21, p9.29
+* 2		ehrpwm0 	p9.42
+* 3		ehrpwm1a	p9.14, p8.36
+* 4		ehrpwm1b	p9.16, p8.34
+* 5		ehrpwm2a	p8.19, p8.45
+* 6		ehrpwm2b	p8.13, p8.46
+* 7		ehrpwm2 	p9.28
 *
 */
 
@@ -36,10 +42,9 @@
     __overlay__ {
       circls_led_pwm: CIRCLS_led_pwm {
         pinctrl-single,pins = <
-          0x048 0x06  // P9_14 PINS$18 EHRPWM1A
           0x04c 0x06  // P9_16 PINS$19 EHRPWM1B
-          0x154 0x06  // P9_21 PINS$85 EHRPWM0B
-          0x150 0x06  // P9_22 PINS$84 EHRPWM0:
+          0x154 0x03  // P9_21 PINS$85 EHRPWM0B
+          0x150 0x03  // P9_22 PINS$84 EHRPWM0A
         >;
       };
     };
