@@ -45,8 +45,17 @@ $(OVERLAY_INST): $(FIRMWARE)/%-00A0.dtbo: %-00A0.dtbo
 	@echo "Installing $< to $(FIRMWARE)..."
 	@sudo sh -c 'cp $< $@'
 
-deactivate: $(OVERLAY_DEACTIVATE_TARGETS)
-activate: $(OVERLAY_ACTIVATE_TARGETS)
+activate:
+	@echo "Try one of these:"
+	@for i in $(OVERLAY_ACTIVATE_TARGETS); do \
+	  echo "\tmake $$i"; \
+	done
+
+deactivate:
+	@echo "Try one of these:"
+	@for i in $(OVERLAY_DEACTIVATE_TARGETS); do \
+	  echo "\tmake $$i"; \
+	done
 
 $(OVERLAY_ACTIVATE_TARGETS): activate-%: $(FIRMWARE)/%-00A0.dtbo
 	@OVL=$(@:activate-%=%) && \
