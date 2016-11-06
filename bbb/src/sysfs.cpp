@@ -39,7 +39,7 @@ SysFS::SysFS(const string &category, int num)
 
 SysFS::~SysFS()
 {
-  if (number > 0)
+  if (number >= 0)
     unexportPin ();
 }
 
