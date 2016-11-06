@@ -206,7 +206,7 @@ run (void)
 {
   int ret = -1;
   ret = module->run (number, false);
-  _runcache = ret >= 0;
+  _runcache = true;
   return ret;
 }
 
@@ -220,7 +220,7 @@ int PWMSubmodule::
 stop (void)
 {
   int ret = module->stop (number);
-  _runcache = !(ret >= 0);
+  _runcache = false;
   return ret;
 }
 
