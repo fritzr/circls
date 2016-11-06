@@ -90,6 +90,13 @@ write (const string &sub_path, const string &value)
   stream << value;
   bool ret = !stream.bad ();
   stream.close ();
+  if (!ret)
+    cerr << "SysFS: error writing to file '" << fname << "': "
+      << strerror (errno) << endl;
+#ifdef DEBUG
+  else
+    cerr << "# wrote '" << value << "' to '" << fname << endl;
+#endif
 
   return ret;
 }

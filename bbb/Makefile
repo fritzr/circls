@@ -16,10 +16,11 @@ LDLIBS=-lpthread
 
 all: $(PROG_BIN)
 
-# special targets to build apps with different circuits (gpio/pwm)
+# special targets to build apps with different circuits or flags
 gpio: CPPFLAGS+=-DLED_GPIO
 pwm: CPPFLAGS+=-DLED_PWM
-gpio pwm: $(PROG_BIN)
+debug: CPPFLAGS+=-DDEBUG
+gpio pwm debug: $(PROG_BIN)
 
 .PHONY: all dto gpio pwm $(PROG_BIN)
 
