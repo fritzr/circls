@@ -32,10 +32,11 @@ install: $(OVERLAY_INSTALL_TARGETS)
 
 $(OVERLAY_INSTALL_TARGETS): install-%: %-00A0.dtbo
 	@echo "Installing $< to $(FIRMWARE)..."
-	@sudo sh -c 'cp $< $@'
+	@sudo sh -c 'cp $< $(<:%=$(FIRMWARE)/%)'
 
 activate:
 	@echo "Try one of these:"
+	@echo "\tmake dto activate-pwm"
 	@for i in $(OVERLAY_ACTIVATE_TARGETS); do \
 	  echo "\tmake dto $$i"; \
 	done
@@ -58,9 +59,10 @@ activate-pwm: activate-CIRCLS_led_pwm
 $(OVERLAY_ACTIVATE_TARGETS): activate-%: install-%
 	@OVL=$(@:activate-%=%) && \
 	echo "Activating $$OVL..." && \
+	! grep -q $$OVL $(SLOTS) && \
 	sudo sh -c "echo $$OVL > $(SLOTS)" \
 	  && echo "ACTIVE as $$(grep $$OVL $(SLOTS))" \
-	  || echo "FAILED to activate $$OVL"
+	  || echo "Check to see if everything worked out..."
 
 $(OVERLAY_DEACTIVATE_TARGETS):
 	@OVL=$(@:deactivate-%=%) && \
