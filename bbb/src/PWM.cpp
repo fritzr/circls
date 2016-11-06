@@ -204,10 +204,7 @@ int PWMSubmodule::
 run (void)
 {
   int ret = -1;
-  if (!module->isRunning ())
-    ret = PWM::run ();
-  else
-    ret = module->run (number, false);
+  ret = module->run (number, false);
   _runcache = ret >= 0;
   return ret;
 }
