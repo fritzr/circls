@@ -150,12 +150,11 @@ main (int argc, char *argv[])
           back_inserter (args));
 
     idx = -1;
-    last = idx+1;
     switch (line[0])
     {
-      case 'r': idx = LEDR; break;
-      case 'g': idx = LEDG; break;
-      case 'b': idx = LEDB; break;
+      case 'r': idx = LEDR; last = idx+1; break;
+      case 'g': idx = LEDG; last = idx+1; break;
+      case 'b': idx = LEDB; last = idx+1; break;
       case 'w': idx = 0; last = NLEDS; break;
       default: break;
     }
