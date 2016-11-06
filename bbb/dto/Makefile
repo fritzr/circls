@@ -60,3 +60,6 @@ $(OVERLAY_DEACTIVATE_TARGETS):
 	echo "Deactivating [$$ID] $$OVL..." && \
 	sudo sh -c "echo -$$ID > $(SLOTS)" \
 	&& echo "REMOVED [$$ID] $$OVL"
+
+clean:
+	@rm -f $(OVERLAY_BIN)

@@ -25,5 +25,11 @@ $(PROG_BIN): %: %.o $(PROG_DEPS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $< -c -o $@
 
+clean: clean-dto
+	@rm -rf $(PROG_DEPS) $(PROG_BIN) $(PROG_BIN:%=%.o)
+
+clean-dto:
+	@$(MAKE) --no-print-directory -C $(@:clean-%=%) clean
+
 %:
 	@exit 0
