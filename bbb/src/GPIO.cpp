@@ -26,6 +26,7 @@
  */
 
 #include "GPIO.h"
+
 #include<iostream>
 #include<fstream>
 #include<string>
@@ -38,136 +39,101 @@
 #include<pthread.h>
 using namespace std;
 
-namespace exploringBB {
+namespace bbb
+{
 
 /**
  *
  * @param number The GPIO number for the BBB
  */
-GPIO::GPIO(int number, GPIO_DIRECTION dir) {
-	this->number = number;
-	this->debounceTime = 0;
-	this->togglePeriod=100;
-	this->toggleNumber=-1; //infinite number
-	this->callbackFunction = NULL;
-	this->threadRunning = false;
+GPIO::GPIO(int number, GPIO::DIRECTION dir)
+  : SysFS("gpio", number), debounceTime(0)
+{
+  this->debounceTime = 0;
+  this->togglePeriod=100;
+  this->toggleNumber=-1; //infinite number
+  this->callbackFunction = NULL;
+  this->threadRunning = false;
 
-	ostringstream s;
-	s << "gpio" << number;
-	this->name = string(s.str());
-	this->path = GPIO_PATH + this->name + "/";
-	this->exportGPIO();
-	// need to give Linux time to set up the sysfs structure
-	usleep(250000); // 250ms delay
-        setDirection(dir);
+  ostringstream s;
+  s << "gpio" << number;
+  // need to give Linux time to set up the sysfs structure
+  usleep(250000); // 250ms delay
+  setDirection(dir);
 }
 
-int GPIO::write(string path, string filename, string value){
-   ofstream fs;
-   fs.open((path + filename).c_str());
-   if (!fs.is_open()){
-	   perror("GPIO: write failed to open file ");
-	   return -1;
-   }
-   fs << value;
-   fs.close();
-   return 0;
+GPIO::~GPIO() {
 }
 
-string GPIO::read(string path, string filename){
-   ifstream fs;
-   fs.open((path + filename).c_str());
-   if (!fs.is_open()){
-	   perror("GPIO: read failed to open file ");
-    }
-   string input;
-   getline(fs,input);
-   fs.close();
-   return input;
-}
-
-int GPIO::write(string path, string filename, int value){
-   stringstream s;
-   s << value;
-   return this->write(path,filename,s.str());
-}
-
-int GPIO::exportGPIO(){
-   return this->write(GPIO_PATH, "export", this->number);
-}
-
-int GPIO::unexportGPIO(){
-   return this->write(GPIO_PATH, "unexport", this->number);
-}
-
-int GPIO::setDirection(GPIO_DIRECTION dir){
+int GPIO::setDirection(GPIO::DIRECTION dir){
    switch(dir){
-   case INPUT: return this->write(this->path, "direction", "in");
+   case INPUT: return setProperty ("direction", "in");
       break;
-   case OUTPUT:return this->write(this->path, "direction", "out");
-      break;
-   }
-   return -1;
-}
-
-int GPIO::setValue(GPIO_VALUE value){
-   switch(value){
-   case HIGH: return this->write(this->path, "value", "1");
-      break;
-   case LOW: return this->write(this->path, "value", "0");
+   case OUTPUT:return setProperty ("direction", "out");
       break;
    }
    return -1;
 }
 
-int GPIO::setEdgeType(GPIO_EDGE value){
+int GPIO::setValue(GPIO::VALUE value){
    switch(value){
-   case NONE: return this->write(this->path, "edge", "none");
+   case GPIO::HIGH: setProperty ("value", "1");
       break;
-   case RISING: return this->write(this->path, "edge", "rising");
+   case GPIO::LOW: setProperty ("value", "0");
       break;
-   case FALLING: return this->write(this->path, "edge", "falling");
+   }
+   return -1;
+}
+
+int GPIO::setEdgeType(GPIO::EDGE value){
+   switch(value){
+   case GPIO::NONE: setProperty ("edge", "none");
       break;
-   case BOTH: return this->write(this->path, "edge", "both");
+   case GPIO::RISING: setProperty ("edge", "rising");
+      break;
+   case GPIO::FALLING: setProperty ("edge", "falling");
+      break;
+   case GPIO::BOTH: setProperty ("edge", "both");
       break;
    }
    return -1;
 }
 
 int GPIO::setActiveLow(bool isLow){
-   if(isLow) return this->write(this->path, "active_low", "1");
-   else return this->write(this->path, "active_low", "0");
+   if(isLow) return setProperty ("active_low", "1");
+   /*else */ return setProperty ("active_low", "0");
 }
 
 int GPIO::setActiveHigh(){
    return this->setActiveLow(false);
 }
 
-GPIO_VALUE GPIO::getValue(){
-	string input = this->read(this->path, "value");
-	if (input == "0") return LOW;
-	else return HIGH;
+GPIO::VALUE GPIO::getValue(){
+	string input = getProperty ("value");
+	if (input == "0") return GPIO::LOW;
+	else return GPIO::HIGH;
 }
 
-GPIO_DIRECTION GPIO::getDirection(){
-	string input = this->read(this->path, "direction");
+GPIO::DIRECTION GPIO::getDirection(){
+	string input = getProperty ("direction");
 	if (input == "in") return INPUT;
 	else return OUTPUT;
 }
 
-GPIO_EDGE GPIO::getEdgeType(){
-	string input = this->read(this->path, "edge");
-	if (input == "rising") return RISING;
-	else if (input == "falling") return FALLING;
-	else if (input == "both") return BOTH;
-	else return NONE;
+GPIO::EDGE GPIO::getEdgeType(){
+	string input = getProperty ("edge");
+	if (input == "rising") return GPIO::RISING;
+	else if (input == "falling") return GPIO::FALLING;
+	else if (input == "both") return GPIO::BOTH;
+	else return GPIO::NONE;
 }
 
+/* TODO
 int GPIO::streamOpen(){
-	stream.open((path + "value").c_str());
+	stream.open((dir + modname + "value").c_str());
 	return 0;
 }
-int GPIO::streamWrite(GPIO_VALUE value){
+int GPIO::streamWrite(GPIO::VALUE value){
 	stream << value << std::flush;
 	return 0;
 }
@@ -175,10 +141,11 @@ int GPIO::streamClose(){
 	stream.close();
 	return 0;
 }
+*/
 
 int GPIO::toggleOutput(){
-	if ((bool) this->getValue()) this->setValue(LOW);
-	else this->setValue(HIGH);
+	if ((bool) this->getValue()) this->setValue(GPIO::LOW);
+	else this->setValue(GPIO::HIGH);
     return 0;
 }
 
@@ -200,8 +167,8 @@ void* threadedToggle(void *value){
 	GPIO *gpio = static_cast<GPIO*>(value);
 	bool isHigh = (bool) gpio->getValue(); //find current value
 	while(gpio->threadRunning){
-		if (isHigh)	gpio->setValue(HIGH);
-		else gpio->setValue(LOW);
+		if (isHigh)	gpio->setValue(GPIO::HIGH);
+		else gpio->setValue(GPIO::LOW);
 		usleep(gpio->togglePeriod * 500);
 		isHigh=!isHigh;
 		if(gpio->toggleNumber>0) gpio->toggleNumber--;
@@ -220,7 +187,9 @@ int GPIO::waitForEdge(){
 	   perror("GPIO: Failed to create epollfd");
 	   return -1;
     }
-    if ((fd = open((this->path + "value").c_str(), O_RDONLY | O_NONBLOCK)) == -1) {
+
+    fd = open((dir + modname + "value").c_str(), O_RDONLY | O_NONBLOCK);
+    if (fd == -1) {
        perror("GPIO: Failed to open file");
        return -1;
     }
@@ -271,8 +240,4 @@ int GPIO::waitForEdge(CallbackType callback){
     return 0;
 }
 
-GPIO::~GPIO() {
-	this->unexportGPIO();
-}
-
-} /* namespace exploringBB */
+} /* namespace bbb */

@@ -1,4 +1,4 @@
-PROG_COMMON=GPIO PWM
+PROG_COMMON=sysfs GPIO PWM
 PROG_BIN=ledtest
 
 PROG_TARGETS=$(PROG_BIN:%=$(BIN)/%)
@@ -10,12 +10,18 @@ BIN?=bin
 BUILD?=build
 
 CXX?=g++
+CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x
 LDLIBS=-lpthread
 
 all: $(PROG_BIN)
 
-.PHONY: all dto $(PROG_BIN)
+# special targets to build apps with different circuits (gpio/pwm)
+gpio: CPPFLAGS+=-DLED_GPIO
+pwm: CPPFLAGS+=-DLED_PWM
+gpio pwm: $(PROG_BIN)
+
+.PHONY: all dto gpio pwm $(PROG_BIN)
 
 # CD down into 'dto' to build device tree overlays
 dto:
@@ -26,14 +32,15 @@ dto:
 $(PROG_BIN): %: $(BUILD) $(BUILD)/%.o $(BIN) $(BIN)/%
 
 $(PROG_TARGETS): $(BIN)/%: $(BUILD)/%.o $(PROG_DEPS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build intermediate objects
+
 $(BUILD)/%.o: $(SRC)/%.cpp $(SRC)/%.h
-	$(CXX) $(CXXFLAGS) $< -c -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -c -o $@
 
 $(BUILD)/%.o: $(SRC)/%.cpp
-	$(CXX) $(CXXFLAGS) $< -c -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -c -o $@
 
 $(BUILD) $(BIN):
 	mkdir -p $@

@@ -20,84 +20,78 @@
  * the grant of any rights to this Software.
  *
  * For more details, see http://www.derekmolloy.ie/
+ *
+ * Adapted by Fritz Reese for flexibility.
  */
 
 #ifndef GPIO_H_
 #define GPIO_H_
-#include<string>
-#include<fstream>
+
+#include <string>
+#include <fstream>
 using std::string;
 using std::ofstream;
 
-#define GPIO_PATH "/sys/class/gpio/"
+#include "sysfs.h"
 
-namespace exploringBB {
+namespace bbb
+{
 
 typedef int (*CallbackType)(int);
-enum GPIO_DIRECTION{ INPUT, OUTPUT };
-enum GPIO_VALUE{ LOW=0, HIGH=1 };
-enum GPIO_EDGE{ NONE, RISING, FALLING, BOTH };
 
-class GPIO {
+class GPIO : public SysFS
+{
 private:
-	int number, debounceTime;
-	string name, path;
+  int debounceTime;
 
 public:
-        //constructor will export the pin
-	GPIO(int number, GPIO_DIRECTION dir=INPUT);
-	virtual int getNumber() { return number; }
+  enum DIRECTION{ INPUT, OUTPUT };
+  enum VALUE{ LOW=0, HIGH=1 };
+  enum EDGE{ NONE, RISING, FALLING, BOTH };
 
-	// General Input and Output Settings
-	virtual int setDirection(GPIO_DIRECTION);
-	virtual GPIO_DIRECTION getDirection();
-	virtual int setValue(GPIO_VALUE);
-        int operator= (GPIO_VALUE val) { return setValue (val); }
-	virtual int toggleOutput();
-	virtual GPIO_VALUE getValue();
-	virtual int setActiveLow(bool isLow=true);  //low=1, high=0
-	virtual int setActiveHigh(); //default
-	//software debounce input (ms) - default 0
-	virtual void setDebounceTime(int time) { this->debounceTime = time; }
+  //constructor will export the pin - number is the $PINS number
+  GPIO(int number, GPIO::DIRECTION dir=INPUT);
 
-	// Advanced OUTPUT: Faster write by keeping the stream alive (~20X)
-	virtual int streamOpen();
-	virtual int streamWrite(GPIO_VALUE);
-	virtual int streamClose();
+  //destructor will unexport the pin
+  virtual ~GPIO();
 
-	virtual int toggleOutput(int time); //threaded invert output every X ms.
-	virtual int toggleOutput(int numberOfTimes, int time);
-	virtual void changeToggleTime(int time) { this->togglePeriod = time; }
-	virtual void toggleCancel() { this->threadRunning = false; }
+  // General Input and Output Settings
+  virtual int setDirection(GPIO::DIRECTION);
+  virtual GPIO::DIRECTION getDirection();
+  virtual int setValue(GPIO::VALUE);
+  int operator= (GPIO::VALUE val) { return setValue (val); }
+  virtual int toggleOutput();
+  virtual GPIO::VALUE getValue();
+  virtual int setActiveLow(bool isLow=true);  //low=1, high=0
+  virtual int setActiveHigh(); //default
+  //software debounce input (ms) - default 0
+  virtual void setDebounceTime(int time) { this->debounceTime = time; }
 
-	// Advanced INPUT: Detect input edges; threaded and non-threaded
-	virtual int setEdgeType(GPIO_EDGE);
-	virtual GPIO_EDGE getEdgeType();
-	virtual int waitForEdge(); // waits until button is pressed
-	virtual int waitForEdge(CallbackType callback); // threaded with callback
-	virtual void waitForEdgeCancel() { this->threadRunning = false; }
+  virtual int toggleOutput(int time); //threaded invert output every X ms.
+  virtual int toggleOutput(int numberOfTimes, int time);
+  virtual void changeToggleTime(int time) { this->togglePeriod = time; }
+  virtual void toggleCancel() { this->threadRunning = false; }
 
-	virtual ~GPIO();  //destructor will unexport the pin
+  // Advanced INPUT: Detect input edges; threaded and non-threaded
+  virtual int setEdgeType(GPIO::EDGE);
+  virtual GPIO::EDGE getEdgeType();
+  virtual int waitForEdge(); // waits until button is pressed
+  virtual int waitForEdge(CallbackType callback); // threaded with callback
+  virtual void waitForEdgeCancel() { this->threadRunning = false; }
 
 private:
-	int write(string path, string filename, string value);
-	int write(string path, string filename, int value);
-	string read(string path, string filename);
-	int exportGPIO();
-	int unexportGPIO();
-	ofstream stream;
-	pthread_t thread;
-	CallbackType callbackFunction;
-	bool threadRunning;
-	int togglePeriod;  //default 100ms
-	int toggleNumber;  //default -1 (infinite)
-	friend void* threadedPoll(void *value);
-	friend void* threadedToggle(void *value);
-};
+  pthread_t thread;
+  CallbackType callbackFunction;
+  bool threadRunning;
+  int togglePeriod;  //default 100ms
+  int toggleNumber;  //default -1 (infinite)
+  friend void* threadedPoll(void *value);
+  friend void* threadedToggle(void *value);
+}; /* class GPIO */
 
 void* threadedPoll(void *value);
 void* threadedToggle(void *value);
 
-} /* namespace exploringBB */
+} /* namespace bbb */
 
 #endif /* GPIO_H_ */
