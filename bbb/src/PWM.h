@@ -108,7 +108,10 @@ private:
 
 protected:
   /* For use by the PWMModule.  */
-  int reallyRun(void) { return PWM::run (); }
+  int reallyRun(void) {
+    _runcache = true;
+    return PWM::run ();
+  }
   int reallySetPeriod(unsigned int period_ns) {
     return PWM::setPeriod(period_ns);
   }
@@ -119,7 +122,14 @@ protected:
     return PWM::setPolarity(polarity);
   }
   int reallyStop(void) {
+    _runcache = false;
     return PWM::stop ();
+  }
+  unsigned int reallyGetDutyCycle (void) {
+    unsigned int duty = PWM::getDutyCycle ();
+    if (duty != 0)
+      _dutycache = duty;
+    return duty;
   }
 
 public:
