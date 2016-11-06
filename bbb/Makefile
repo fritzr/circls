@@ -32,7 +32,7 @@ dto:
 # Build programs
 $(PROG_BIN): %: $(BUILD) $(BUILD)/%.o $(BIN) $(BIN)/%
 
-$(PROG_TARGETS): $(BIN)/%: $(BUILD)/%.o $(PROG_DEPS)
+$(PROG_TARGETS): $(BIN)/%: $(PROG_DEPS) $(BUILD)/%.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build intermediate objects
