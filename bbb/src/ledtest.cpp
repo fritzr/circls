@@ -18,6 +18,9 @@
 #include <string>
 #include <cstdlib>
 #include <sstream>
+#include <vector>
+#include <iterator>
+#include <algorithm>
 
 #if defined(LED_GPIO) && !defined(LED_PWM)
 #define LEDR_GPIO 2  /* P9_22 */
@@ -64,28 +67,34 @@ usage (const char *prog, const char *msg)
 /* Do a command on a single LED. For PWM pins this is just an optional
  * duty cycle percentage (the period is fixed at something low like 1kHz).  */
 static void
-doCommand (LED &led, const string &cmd)
+doCommand (LED &led, vector<string> &args)
 {
 #if defined(LED_GPIO) && !defined(LED_PWM)
   led.toggleOutput ();
 #else // LED_PWM
   // Update duty cycle if given
   int dutyPercent = -1;
-  if (!cmd.empty ())
+  if (args.size () > 1 && !args[1].empty ())
   {
-    istringstream s (cmd);
+    istringstream s (args[1]);
     s >> dutyPercent;
-    if (dutyPercent >= 0 && dutyPercent <= 100)
-      led.setDutyCycle (((float)dutyPercent)/100.0f);
+    if (0 == led.setDutyCycle ((float)dutyPercent))
+      led.run ();
+    else if (dutyPercent != 0)
+      cerr << "ignoring bad duty cycle '" << args[1] << "'" << endl;
     else
-      cerr << "ignoring bad duty cycle '" << cmd << "'" << endl;
+      led.stop ();
   }
 
-  // Toggle output
-  if (led.isRunning ())
-    led.stop ();
+  // No args given, just toggle the run state
   else
-    led.run ();
+  {
+    // Toggle output, or don't
+    if (led.isRunning ())
+      led.stop ();
+    else
+      led.run ();
+  }
 
 #endif
 }
@@ -108,6 +117,12 @@ main (int argc, char *argv[])
 #endif
   };
 
+    cerr << "Usage: r|g|b|w"
+#if defined(LED_PWM) || !defined(LED_GPIO)
+         << " [duty]"
+#endif
+         << endl;
+
   char c;
   int idx = -1;
   /* Command-loop.  */
@@ -117,10 +132,11 @@ main (int argc, char *argv[])
     getline (cin, line);
     c = line[0];
 
-    string rest;
-    size_t rest_idx = line.find_first_of (' ');
-    if (rest_idx != string::npos)
-      rest = line.substr (rest_idx);
+    vector<string> args;
+    istringstream iss (line);
+    copy (istream_iterator<string> (iss),
+          istream_iterator<string> (),
+          back_inserter (args));
 
     switch (c)
     {
@@ -129,7 +145,7 @@ main (int argc, char *argv[])
       case 'b': idx = LEDB; break;
       case 'w': // 'white', toggle all
         for (idx = 0; idx < NLEDS; idx++)
-          doCommand (leds[idx], rest);
+          doCommand (leds[idx], args);
         idx = -1;
         break;
       default: break;
@@ -137,8 +153,10 @@ main (int argc, char *argv[])
 
     if (idx >= 0 && idx < NLEDS)
     {
-      cout << "> toggle " << c << endl;
-      doCommand (leds[idx], rest);
+#if defined(LED_GPIO) && !defined(LED_PWM)
+      cout << "* toggle " << c << endl;
+#endif
+      doCommand (leds[idx], args);
       idx = -1;
     }
   }
