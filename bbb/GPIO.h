@@ -52,6 +52,7 @@ public:
 	virtual int setDirection(GPIO_DIRECTION);
 	virtual GPIO_DIRECTION getDirection();
 	virtual int setValue(GPIO_VALUE);
+        int operator= (GPIO_VALUE val) { return setValue (val); }
 	virtual int toggleOutput();
 	virtual GPIO_VALUE getValue();
 	virtual int setActiveLow(bool isLow=true);  //low=1, high=0
