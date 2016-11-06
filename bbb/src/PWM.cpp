@@ -66,7 +66,8 @@ PWM::PWM(int ehrpwmX, int subX)
 
 PWM::~PWM()
 {
-  stop ();
+  if (number >= 0)
+    stop ();
 }
 
 int PWM::setPeriod(unsigned int period_ns) {
