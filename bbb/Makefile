@@ -11,12 +11,28 @@ OVERLAY_INST=$(OVERLAY_BIN:%=$(FIRMWARE)/%)
 OVERLAY_DEACTIVATE_TARGETS=$(OVERLAY:%=deactivate-%)
 OVERLAY_ACTIVATE_TARGETS=$(OVERLAY:%=activate-%)
 
-all: $(OVERLAY_BIN)
+PROG_DEPS=GPIO.o
+PROG_BIN=ledtest
+
+CXX?=g++
+CXXFLAGS+=-g -Wall -std=c++0x
+LDLIBS=-lpthread
+
+all: $(OVERLAY_BIN) $(PROG_BIN)
 
 install: install-overlays
 
 .PHONY: all install activate deactivate \
   $(OVERLAY_ACTIVATE_TARGETS) $(OVERLAY_DEACTIVATE_TARGETS)
+
+$(PROG_BIN): %: %.o $(PROG_DEPS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+%.o: %.cpp %.h
+	$(CXX) $(CXXFLAGS) $< -c -o $@
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $< -c -o $@
 
 # Build the overlay blob from device tree source
 $(OVERLAY_BIN): %-00A0.dtbo: %.dts

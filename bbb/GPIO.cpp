@@ -44,7 +44,7 @@ namespace exploringBB {
  *
  * @param number The GPIO number for the BBB
  */
-GPIO::GPIO(int number) {
+GPIO::GPIO(int number, GPIO_DIRECTION dir) {
 	this->number = number;
 	this->debounceTime = 0;
 	this->togglePeriod=100;
@@ -59,6 +59,7 @@ GPIO::GPIO(int number) {
 	this->exportGPIO();
 	// need to give Linux time to set up the sysfs structure
 	usleep(250000); // 250ms delay
+        setDirection(dir);
 }
 
 int GPIO::write(string path, string filename, string value){

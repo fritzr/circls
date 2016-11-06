@@ -44,7 +44,8 @@ private:
 	string name, path;
 
 public:
-	GPIO(int number); //constructor will export the pin
+        //constructor will export the pin
+	GPIO(int number, GPIO_DIRECTION dir=INPUT);
 	virtual int getNumber() { return number; }
 
 	// General Input and Output Settings
