@@ -378,19 +378,14 @@ int PWMModule::
 run ()
 {
   int ret = 0;
-  unsigned int runningCount = 0;
   if (!isRunning ())
   {
     FOR_EACH_SUB(subi) {
-      if (submods[subi]->isRunning ())
-        runningCount++;
       submods[subi]->reallyRun ();
+    if (submods[subi]->reallyGetDutyCycle () != 0u)
+      _modulesRunning++;
     }
   }
-  /* Note that some submodules may still have a duty cycle of 0, which means
-   * they will not be running after 'run' is set to true.  Their runcache
-   * should report this, however.  */
-  _modulesRunning = runningCount;
   return ret;
 }
 
@@ -405,7 +400,6 @@ stop ()
 {
   int ret = 0;
   FOR_EACH_SUB(subi) {
-    number = ehrpwm_export (modnum, subi);
     ret += submods[subi]->reallyStop ();
   }
 
