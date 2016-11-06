@@ -46,7 +46,16 @@ deactivate:
 	  echo "\tmake dto $$i"; \
 	done
 
-$(OVERLAY_ACTIVATE_TARGETS): activate-%: $(FIRMWARE)/%-00A0.dtbo
+# The PWM module is special because we have to make sure the am33xx_pwm
+# dto is loaded first.
+activate-pwm: activate-CIRCLS_led_pwm
+	@if ! grep -q am33xx_pwm $(SLOTS); then \
+	  echo "Activating AM33XX PWM module..."; \
+	  sudo sh -c "echo am33xx_pwm > $(SLOTS)" \
+	    || echo "FAILED to load am33xx_pwm! Check dmesg."; \
+	fi
+
+$(OVERLAY_ACTIVATE_TARGETS): activate-%: install-%
 	@OVL=$(@:activate-%=%) && \
 	echo "Activating $$OVL..." && \
 	sudo sh -c "echo $$OVL > $(SLOTS)" \
