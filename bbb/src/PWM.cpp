@@ -248,7 +248,7 @@ setDutyCycle (unsigned int duration_ns)
   for (unsigned int var = 0 ; var < nsubs; var ++ )
 
 PWMModule::PWMModule (unsigned int ehrpwmX, unsigned int nsubmods)
-  : PWM(modnum, 0), modnum(ehrpwmX), nsubs(nsubmods), _modulesRunning(0)
+  : PWM(), modnum(ehrpwmX), nsubs(nsubmods), _modulesRunning(0)
 {
   /* List of submodules.  */
   FOR_EACH_SUB(subi) {
@@ -261,6 +261,8 @@ PWMModule::~PWMModule ()
   FOR_EACH_SUB(subi) {
     delete submods[subi];
   }
+  // Prevent SysFS destructor from extra unexport
+  number = -1;
 }
 
 PWM &PWMModule::
