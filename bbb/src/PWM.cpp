@@ -326,8 +326,8 @@ run (unsigned int submod, bool exclusive)
           submods[subi]->setDutyCycle (0u);
       }
       ret = run ();
-      _modulesRunning++;
     }
+    _modulesRunning++;
 
     /* If we want exclusive running of this submodule, stop all the other ones.
      * We do this after the above so stop() doesn't turn off the module when the
