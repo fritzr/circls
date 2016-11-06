@@ -176,7 +176,6 @@ int GPIO::streamClose(){
 }
 
 int GPIO::toggleOutput(){
-	this->setDirection(OUTPUT);
 	if ((bool) this->getValue()) this->setValue(LOW);
 	else this->setValue(HIGH);
     return 0;
@@ -184,7 +183,6 @@ int GPIO::toggleOutput(){
 
 int GPIO::toggleOutput(int time){ return this->toggleOutput(-1, time); }
 int GPIO::toggleOutput(int numberOfTimes, int time){
-	this->setDirection(OUTPUT);
 	this->toggleNumber = numberOfTimes;
 	this->togglePeriod = time;
 	this->threadRunning = true;
