@@ -1,3 +1,5 @@
 *.o
 *.dtbo
 .*.swp
+build/
+bin/

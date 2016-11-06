@@ -1,5 +1,13 @@
-PROG_DEPS=GPIO.o
+PROG_COMMON=GPIO PWM
 PROG_BIN=ledtest
+
+PROG_TARGETS=$(PROG_BIN:%=$(BIN)/%)
+PROG_DEPS=$(PROG_COMMON:%=$(BUILD)/%.o)
+PROG_SRC=$(PROG_BIN:%=$(SRC)/%.cpp)
+
+SRC?=src
+BIN?=bin
+BUILD?=build
 
 CXX?=g++
 CXXFLAGS+=-g -Wall -std=c++0x
@@ -7,7 +15,7 @@ LDLIBS=-lpthread
 
 all: $(PROG_BIN)
 
-.PHONY: all dto
+.PHONY: all dto $(PROG_BIN)
 
 # CD down into 'dto' to build device tree overlays
 dto:
@@ -15,21 +23,30 @@ dto:
 	  $(shell echo $(MAKECMDGOALS) | cut -d' ' -f2-)
 
 # Build programs
-$(PROG_BIN): %: %.o $(PROG_DEPS)
+$(PROG_BIN): %: $(BUILD) $(BUILD)/%.o $(BIN) $(BIN)/%
+
+$(PROG_TARGETS): $(BIN)/%: $(BUILD)/%.o $(PROG_DEPS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Build intermediate objects
-%.o: %.cpp %.h
+$(BUILD)/%.o: $(SRC)/%.cpp $(SRC)/%.h
 	$(CXX) $(CXXFLAGS) $< -c -o $@
 
-%.o: %.cpp
+$(BUILD)/%.o: $(SRC)/%.cpp
 	$(CXX) $(CXXFLAGS) $< -c -o $@
 
-clean: clean-dto
-	@rm -rf $(PROG_DEPS) $(PROG_BIN) $(PROG_BIN:%=%.o)
+$(BUILD) $(BIN):
+	mkdir -p $@
+
+clean:
+	@rm -rf $(BUILD)
+
+distclean: clean clean-dto
+	@rm -rf $(BIN)
 
 clean-dto:
 	@$(MAKE) --no-print-directory -C $(@:clean-%=%) clean
 
+# This target exists to silently ignore X from 'make dto X'
 %:
 	@exit 0
