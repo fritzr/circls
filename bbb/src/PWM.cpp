@@ -49,7 +49,7 @@ PWM::PWM(int ehrpwmX, int subX)
   analogFrequency (1000), analogMax (3.3)
 {
   setFrequency (analogFrequency);
-  setDutyCycle (0.50f);
+  setDutyCycle (50.0f);
 }
 
 PWM::~PWM()
