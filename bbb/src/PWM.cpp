@@ -327,7 +327,8 @@ run (unsigned int submod, bool exclusive)
       /* Set all to 'run' state to keep sysfs consistent, but keep their duty
        * cycles 0 so they aren't inadvertently run.  */
       FOR_EACH_SUB(subi) {
-        submods[subi]->setDutyCycle (0u);
+        if (subi != submod)
+          submods[subi]->setDutyCycle (0u);
       }
       ret = run ();
       _modulesRunning++;
