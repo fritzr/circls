@@ -14,6 +14,12 @@ using namespace std;
 namespace bbb
 {
 
+SysFS::SysFS()
+  : number(-1)
+{
+
+}
+
 SysFS::SysFS(const string &category, int num)
   : number(num)
 {
@@ -33,7 +39,8 @@ SysFS::SysFS(const string &category, int num)
 
 SysFS::~SysFS()
 {
-  unexportPin ();
+  if (number > 0)
+    unexportPin ();
 }
 
 void SysFS::

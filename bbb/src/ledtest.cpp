@@ -67,10 +67,11 @@ usage (const char *prog, const char *msg)
 /* Do a command on a single LED. For PWM pins this is just an optional
  * duty cycle percentage (the period is fixed at something low like 1kHz).  */
 static void
-doCommand (LED &led, vector<string> &args)
+doLEDCommand (LED *led, vector<string> &args)
 {
 #if defined(LED_GPIO) && !defined(LED_PWM)
-  led.toggleOutput ();
+  cout << "* toggle " << args[0][0] << endl;
+  led->toggleOutput ();
 #else // LED_PWM
   // Update duty cycle if given
   int dutyPercent = -1;
@@ -78,25 +79,28 @@ doCommand (LED &led, vector<string> &args)
   {
     istringstream s (args[1]);
     s >> dutyPercent;
-    if (0 == led.setDutyCycle ((float)dutyPercent))
-      led.run ();
-    else if (dutyPercent != 0)
+    if (dutyPercent < 0 || dutyPercent > 100)
       cerr << "ignoring bad duty cycle '" << args[1] << "'" << endl;
+    else if (dutyPercent != 0)
+    {
+      led->setDutyCycle ((float)dutyPercent);
+      led->run ();
+    }
     else
-      led.stop ();
+      led->stop ();
   }
 
   // No args given, just toggle the run state
   else
   {
     // Toggle output, or don't
-    if (led.isRunning ())
-      led.stop ();
+    if (led->isRunning ())
+      led->stop ();
     else
-      led.run ();
+      led->run ();
   }
+#endif // LED_PWM
 
-#endif
 }
 
 int
@@ -105,61 +109,60 @@ main (int argc, char *argv[])
   if (getuid () != 0)
     usage (argv[0], "must be root");
 
-  LED leds[] = {
+  cerr << "Usage: r|g|b|w";
+
 #if defined(LED_GPIO) && !defined(LED_PWM)
-    { LEDR_GPIO, GPIO::OUTPUT }, /* LEDR */
-    { LEDG_GPIO, GPIO::OUTPUT }, /* LEDG */
-    { LEDB_GPIO, GPIO::OUTPUT }, /* LEDB */
+  cerr << endl;
+
+  GPIO led_r(LEDR_GPIO, GPIO::OUTPUT);
+  GPIO led_g(LEDG_GPIO, GPIO::OUTPUT);
+  GPIO led_b(LEDB_GPIO, GPIO::OUTPUT);
+
 #else /* LED_PWM */
-    { LEDR_PWM_MOD, LEDR_PWM_SUB }, /* LEDR */
-    { LEDG_PWM_MOD, LEDG_PWM_SUB }, /* LEDG */
-    { LEDB_PWM_MOD, LEDB_PWM_SUB }, /* LEDB */
+  cerr << " [duty]" << endl;
+
+  /* The red and green LEDs are in the same module, so we need to use the
+   * PWMModule wrapper to handle them.  */
+  PWMModule led_pair = PWMModule(LEDR_PWM_MOD);
+  PWM &led_r = led_pair.getSubmodule(LEDR_PWM_SUB);
+  PWM &led_g = led_pair.getSubmodule(LEDG_PWM_SUB);
+  PWM led_b  = PWM(LEDB_PWM_MOD, LEDB_PWM_SUB);
+
 #endif
+
+  LED *leds[] = {
+    &led_r, &led_g, &led_b
   };
 
-    cerr << "Usage: r|g|b|w"
-#if defined(LED_PWM) || !defined(LED_GPIO)
-         << " [duty]"
-#endif
-         << endl;
-
-  char c;
-  int idx = -1;
   /* Command-loop.  */
+  int idx = -1;
+  int last;
   while (!cin.bad () && !cin.eof ())
   {
     string line;
     getline (cin, line);
-    c = line[0];
 
+    /* Split args into words.  */
     vector<string> args;
     istringstream iss (line);
     copy (istream_iterator<string> (iss),
           istream_iterator<string> (),
           back_inserter (args));
 
-    switch (c)
+    idx = -1;
+    last = idx+1;
+    switch (line[0])
     {
       case 'r': idx = LEDR; break;
       case 'g': idx = LEDG; break;
       case 'b': idx = LEDB; break;
-      case 'w': // 'white', toggle all
-        for (idx = 0; idx < NLEDS; idx++)
-          doCommand (leds[idx], args);
-        idx = -1;
-        break;
+      case 'w': idx = 0; last = NLEDS; break;
       default: break;
     }
 
-    if (idx >= 0 && idx < NLEDS)
-    {
-#if defined(LED_GPIO) && !defined(LED_PWM)
-      cout << "* toggle " << c << endl;
-#endif
-      doCommand (leds[idx], args);
-      idx = -1;
-    }
+    /* Delegate the command, passing the chosen LED(s).  */
+    for (; idx > 0 && idx < last; idx++)
+      doLEDCommand (leds[idx], args);
   }
-
   return 0;
 }

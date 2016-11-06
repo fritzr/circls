@@ -25,7 +25,9 @@
 #ifndef PWM_H_
 #define PWM_H_
 #include<string>
+#include <vector>
 using std::string;
+using std::vector;
 
 #include "sysfs.h"
 
@@ -46,6 +48,18 @@ private:
   float analogFrequency;  //defaults to 100 Hz
   float analogMax;        //defaults to 3.3V
 
+protected:
+  /* Dummy PWM object which doesn't actually do anything on initialization. */
+  PWM();
+
+  /* Cache of which submodules are running, so we don't need to keep querying
+   * the sysfs.  */
+  bool _runcache;
+
+  /* Cache of 'last' duty cycles, so they are not forgotten from the user's
+   * perspective between run()s on the same submodule.  */
+  unsigned int _dutycache;
+
 public:
   /* The first number is which ehrpwm module to use, the second number is which
    * output of the module to use.  For example, ehrpwm0_0 would be PWM(0,0). */
@@ -56,7 +70,7 @@ public:
   virtual int setFrequency(float frequency_hz);
   virtual float getFrequency();
   virtual int setDutyCycle(unsigned int duration_ns);
-  virtual int setDutyCycle(float percentage);
+  virtual unsigned int setDutyCycle(float percentage); // returns duty_ns
   virtual unsigned int getDutyCycle();
   virtual float getDutyCyclePercent();
 
@@ -76,6 +90,101 @@ public:
 private:
   float period_nsToFrequency(unsigned int);
   unsigned int frequencyToPeriod_ns(float);
+};
+
+class PWMModule;
+
+/* The PWMSubmodule is a module-aware PWM pin. It knows that certain properties
+ * are universal to the module, and must be set through a PWMModule instance.
+ */
+class PWMSubmodule : public PWM
+{
+private:
+  /* We keep a reference to the parent module, so that any properties changed
+   * that must be kept global across the module are reserved if they are set
+   * through this submodule.  */
+  PWMModule *module;
+
+public:
+  PWMSubmodule(PWMModule *mod, unsigned int modnum, unsigned int submod);
+  ~PWMSubmodule();
+
+  /*** These properties are common to all sub-modules.  ***/
+  int setPeriod(unsigned int period_ns);
+  int setFrequency(float frequency_hz);
+  int setPolarity(PWM::POLARITY polarity);
+
+  /* Run only this module (independently of others).
+   * If exclusive is given, then also disable all other submodules.  */
+  int run(void);
+
+  /* Whether a sub-module is running (independently of others).  */
+  bool isRunning(void);
+
+  /* Stop this submodule (independently of others).  */
+  int stop(void);
+
+  /*** These properties can be unique to each sub-module.  ***/
+  unsigned int getDutyCycle();
+
+  int setDutyCycle(unsigned int duration_ns);
+};
+
+/* Unfortunately multiple outputs from the same ehrpwm module cannot have
+ * different run-states.
+ *
+ * This class wraps up an ehrpwm module (two output pins) to effectively
+ * control them independently.  Though they must have the same period
+ * (frequency) and run state, they can have different duty cycles.
+ * Therefore we can simulate independence by setting the duty-cycle of one to
+ * '0' while the other is enabled.
+ */
+class PWMModule : public PWM
+{
+private:
+  unsigned int modnum;
+  unsigned int nsubs;
+  vector<PWMSubmodule *>submods;
+
+  /* Cache of whether the entire module is running.  */
+  unsigned int _modulesRunning;
+
+public:
+  PWMModule(unsigned int ehrpwmX, unsigned int nsubmods=2);
+
+  ~PWMModule();
+
+  PWM &getSubmodule (unsigned int submod);
+
+  /*** These properties can be set for each submodule separately.  ***/
+  int setDutyCycle (unsigned int submod, unsigned int duration_ns);
+  unsigned int setDutyCycle (unsigned int submod, float percentage_out_of_100);
+
+  /*** These properties are common to all sub-modules.  ***/
+  int setPeriod(unsigned int period_ns);
+  int setFrequency(float frequency_hz);
+  int setPolarity(PWM::POLARITY polarity);
+
+  /* Run only the given submodule PWM (independently of others).
+   * If exclusive is given, then also disable all other submodules.  */
+  int run(unsigned int submod, bool exclusive=false);
+
+  /* Whether a sub-module is running (independently of others).  */
+  bool isRunning(unsigned int submod);
+
+  /* Stop a single submodule (independently of others).  */
+  int stop(unsigned int submod);
+
+  /* Run all PWMs in the module.  */
+  int run();
+
+  /* Whether the entire module is in the 'run' state.
+   * Doesn't imply anything about each independent sub-module, since they can
+   * have a duty cycle of 0 while the module is 'running'.  */
+  bool isRunning();
+
+  /* Stop all PWMs.  */
+  int stop();
 };
 
 } /* namespace bbb */

@@ -27,6 +27,8 @@ class SysFS
     string dir;        /* set to the sysfs parent path, e.g. /sys/class/gpio/ */
     string modname;    /* set to the pin name with number, e.g. gpio4/ */
 
+    SysFS();
+
   public:
     /* Exports the submodule pin with the given category and name.  */
     SysFS(const string &category, int number);
@@ -51,7 +53,6 @@ class SysFS
     /* Read data from a sysfs entry under the current 'path'.  */
     string read(const string &sub_path);
 
-  private:
     /* Export the pin, exposing its sysfs entry.  */
     void exportPin(void);
 
