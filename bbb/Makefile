@@ -41,7 +41,7 @@ $(OVERLAY_BIN): %-00A0.dtbo: %.dts
 install-overlays: $(OVERLAY_INST)
 
 # Install blobs into lib/firmware
-$(OVERLAY_INST): $(FIRMWARE)/%-00A0.dtbo: %.dtbo
+$(OVERLAY_INST): $(FIRMWARE)/%-00A0.dtbo: %-00A0.dtbo
 	@echo "Installing $< to $(FIRMWARE)..."
 	@sudo sh -c 'cp $< $@'
 
