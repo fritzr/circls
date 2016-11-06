@@ -52,7 +52,10 @@ PWM::PWM(int ehrpwmX, int subX)
   setDutyCycle (0.50f);
 }
 
-PWM::~PWM() {}
+PWM::~PWM()
+{
+  stop ();
+}
 
 int PWM::setPeriod(unsigned int period_ns) {
   return setProperty ("period_ns", period_ns);
