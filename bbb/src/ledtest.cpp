@@ -160,7 +160,7 @@ main (int argc, char *argv[])
     }
 
     /* Delegate the command, passing the chosen LED(s).  */
-    for (; idx > 0 && idx < last; idx++)
+    for (; idx >= 0 && idx < last; idx++)
       doLEDCommand (leds[idx], args);
   }
   return 0;
