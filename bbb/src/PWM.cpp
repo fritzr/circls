@@ -320,10 +320,8 @@ run (unsigned int submod, bool exclusive)
    * Otherwise we have to actually start the submodule.  */
   if (!sub->isRunning ())
   {
-    if (_modulesRunning > 0)
-    {
+    if (isRunning ())
       ret = sub->setDutyCycle (sub->getDutyCycle ());
-    }
     else
     {
       /* Set all to 'run' state to keep sysfs consistent, but keep their duty
