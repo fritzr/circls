@@ -99,11 +99,28 @@ class PWMModule;
  */
 class PWMSubmodule : public PWM
 {
+  friend class PWMModule;
 private:
   /* We keep a reference to the parent module, so that any properties changed
    * that must be kept global across the module are reserved if they are set
    * through this submodule.  */
   PWMModule *module;
+
+protected:
+  /* For use by the PWMModule.  */
+  int reallyRun(void) { return PWM::run (); }
+  int reallySetPeriod(unsigned int period_ns) {
+    return PWM::setPeriod(period_ns);
+  }
+  int reallySetFrequency(float frequency_hz) {
+    return PWM::setFrequency(frequency_hz);
+  }
+  int reallySetPolarity(PWM::POLARITY polarity) {
+    return PWM::setPolarity(polarity);
+  }
+  int reallyStop(void) {
+    return PWM::stop ();
+  }
 
 public:
   PWMSubmodule(PWMModule *mod, unsigned int modnum, unsigned int submod);

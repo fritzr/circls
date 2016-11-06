@@ -277,8 +277,7 @@ setPeriod(unsigned int period_ns)
 {
   int ret = 0;
   FOR_EACH_SUB(subi) {
-    number = ehrpwm_export (modnum, subi);
-    ret += PWM::setPeriod (period_ns);
+    ret += submods[subi]->reallySetPeriod (period_ns);
   }
   return ret;
 }
@@ -288,8 +287,7 @@ setFrequency(float frequency_hz)
 {
   int ret = 0;
   FOR_EACH_SUB(subi) {
-    number = ehrpwm_export (modnum, subi);
-    ret += submods[subi]->setFrequency (frequency_hz);
+    ret += submods[subi]->reallySetFrequency (frequency_hz);
   }
   return ret;
 }
@@ -299,8 +297,7 @@ setPolarity(PWM::POLARITY polarity)
 {
   int ret = 0;
   FOR_EACH_SUB(subi) {
-    number = ehrpwm_export (modnum, subi);
-    ret += submods[subi]->setPolarity (polarity);
+    ret += submods[subi]->reallySetPolarity (polarity);
   }
   return ret;
 }
@@ -386,8 +383,7 @@ run ()
     FOR_EACH_SUB(subi) {
       if (submods[subi]->isRunning ())
         runningCount++;
-      number = ehrpwm_export (modnum, subi);
-      ret += PWM::run ();
+      submods[subi]->reallyRun ();
     }
   }
   /* Note that some submodules may still have a duty cycle of 0, which means
@@ -409,7 +405,7 @@ stop ()
   int ret = 0;
   FOR_EACH_SUB(subi) {
     number = ehrpwm_export (modnum, subi);
-    ret += PWM::stop ();
+    ret += submods[subi]->reallyStop ();
   }
 
   _modulesRunning = 0;
