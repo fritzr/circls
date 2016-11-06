@@ -57,7 +57,8 @@ PWM::PWM()
 
 PWM::PWM(int ehrpwmX, int subX)
   : SysFS("pwm", ehrpwm_export(ehrpwmX, subX)),
-    analogFrequency (1000), analogMax (3.3)
+    analogFrequency (1000), analogMax (3.3),
+    _runcache(false)
 {
   setFrequency (analogFrequency);
   setDutyCycle (50.0f);
