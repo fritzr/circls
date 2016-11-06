@@ -30,7 +30,7 @@ dto:
 	  $(shell echo $(MAKECMDGOALS) | cut -d' ' -f2-)
 
 # Build programs
-$(PROG_BIN): %: $(BUILD) $(BUILD)/%.o $(BIN) $(BIN)/%
+$(PROG_BIN): %: $(BUILD) $(BIN) $(BIN)/%
 
 $(PROG_TARGETS): $(BIN)/%: $(PROG_DEPS) $(BUILD)/%.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
