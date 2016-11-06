@@ -9,12 +9,12 @@ OVERLAY_INST=$(OVERLAY_BIN:%=$(FIRMWARE)/%)
 
 OVERLAY_DEACTIVATE_TARGETS=$(OVERLAY:%=deactivate-%)
 OVERLAY_ACTIVATE_TARGETS=$(OVERLAY:%=activate-%)
+OVERLAY_INSTALL_TARGETS=$(OVERLAY:%=install-%)
 
 all: $(OVERLAY_BIN)
 
-install: install-overlays
-
 .PHONY: dto all install activate deactivate \
+  $(OVERLAY_INSTALL_TARGETS) \
   $(OVERLAY_ACTIVATE_TARGETS) $(OVERLAY_DEACTIVATE_TARGETS)
 
 dto: all
@@ -27,10 +27,10 @@ dto: all
 $(OVERLAY_BIN): %-00A0.dtbo: %.dts
 	dtc -O dtb -o $@ -b 0 -@ $<
 
-install-overlays: $(OVERLAY_INST)
-
 # Install blobs into lib/firmware
-$(OVERLAY_INST): $(FIRMWARE)/%-00A0.dtbo: %-00A0.dtbo
+install: $(OVERLAY_INSTALL_TARGETS)
+
+$(OVERLAY_INSTALL_TARGETS): install-%: %-00A0.dtbo
 	@echo "Installing $< to $(FIRMWARE)..."
 	@sudo sh -c 'cp $< $@'
 
