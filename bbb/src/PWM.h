@@ -127,8 +127,6 @@ protected:
   }
   unsigned int reallyGetDutyCycle (void) {
     unsigned int duty = PWM::getDutyCycle ();
-    if (duty != 0)
-      _dutycache = duty;
     return duty;
   }
 
