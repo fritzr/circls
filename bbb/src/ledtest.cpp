@@ -67,30 +67,55 @@ usage (const char *prog, const char *msg)
 /* Do a command on a single LED. For PWM pins this is just an optional
  * duty cycle percentage (the period is fixed at something low like 1kHz).  */
 static void
-doLEDCommand (LED *led, vector<string> &args)
+doLEDCommand (LED *leds[], vector<string> &args)
 {
 #if defined(LED_GPIO) && !defined(LED_PWM)
-  cout << "* toggle " << args[0][0] << endl;
-  led->toggleOutput ();
-#else // LED_PWM
-  // Update duty cycle if given
-  int dutyPercent = -1;
-  if (args.size () > 1 && !args[1].empty ())
+  int idx = -1;
+  int last = -1;
+  switch (line[0])
   {
-    istringstream s (args[1]);
-    s >> dutyPercent;
-    if (dutyPercent < 0 || dutyPercent > 100)
-      cerr << "ignoring bad duty cycle '" << args[1] << "'" << endl;
-    else if (dutyPercent != 0)
+    case 'r': idx = LEDR; last = idx+1; break;
+    case 'g': idx = LEDG; last = idx+1; break;
+    case 'b': idx = LEDB; last = idx+1; break;
+    case 'w': idx = 0; last = NLEDS; break;
+    default: break;
+  }
+
+  for (; idx >= 0 && idx < last && idx < NLEDS; idx++)
+    leds[idx]->toggleOutput ();
+
+#else // LED_PWM
+  // Take duty cycle string: R G B
+  int duty[3] = { -1, -1, -1 };
+
+  if (args.size () < 3)
+  {
+    cerr << "# bad colorspec" << endl;
+    return;
+  }
+
+  /* Get the 3 duty cycles */
+  for (unsigned int i = 0; i < NLEDS && i < args.size (); i++)
+  {
+    istringstream s(args[i]);
+    s >> duty[i];
+    if (duty[i] < 0 || duty[i] > 100)
+      cerr << "# bad colorspec [" << i << "] '" << args[i] << endl;
+  }
+
+  /* Then pass them to the PWMs  */
+  for (unsigned int i = 0; i < NLEDS; i++)
+  {
+    PWM *led = leds[i];
+    if (duty[i] == 0)
+      led->stop ();
+    else
     {
-      led->setDutyCycle ((float)dutyPercent);
+      led->setDutyCycle ((float)duty[i]);
       led->run ();
-      return;
     }
   }
 
-  /* No args or duty = 0, turn off */
-  led->stop ();
 #endif // LED_PWM
 
 }
@@ -101,17 +126,16 @@ main (int argc, char *argv[])
   if (getuid () != 0)
     usage (argv[0], "must be root");
 
-  cerr << "Usage: r|g|b|w";
 
 #if defined(LED_GPIO) && !defined(LED_PWM)
-  cerr << endl;
+  cerr << "Usage: r|g|b|w" << endl;
 
   GPIO led_r(LEDR_GPIO, GPIO::OUTPUT);
   GPIO led_g(LEDG_GPIO, GPIO::OUTPUT);
   GPIO led_b(LEDB_GPIO, GPIO::OUTPUT);
 
 #else /* LED_PWM */
-  cerr << " [duty]" << endl;
+  cerr << "Usage: R<0-100> G<0-100> B<0-100>" << endl;
 
   /* The red and green LEDs are in the same module, so we need to use the
    * PWMModule wrapper to handle them.  */
@@ -127,12 +151,13 @@ main (int argc, char *argv[])
   };
 
   /* Command-loop.  */
-  int idx = -1;
-  int last;
   while (!cin.bad () && !cin.eof ())
   {
     string line;
     getline (cin, line);
+
+    if (cin.bad () || cin.eof ())
+      break;
 
     /* Split args into words.  */
     vector<string> args;
@@ -141,19 +166,9 @@ main (int argc, char *argv[])
           istream_iterator<string> (),
           back_inserter (args));
 
-    idx = -1;
-    switch (line[0])
-    {
-      case 'r': idx = LEDR; last = idx+1; break;
-      case 'g': idx = LEDG; last = idx+1; break;
-      case 'b': idx = LEDB; last = idx+1; break;
-      case 'w': idx = 0; last = NLEDS; break;
-      default: break;
-    }
-
-    /* Delegate the command, passing the chosen LED(s).  */
-    for (; idx >= 0 && idx < last; idx++)
-      doLEDCommand (leds[idx], args);
+    /* Delegate.  */
+    doLEDCommand (leds, args);
   }
+
   return 0;
 }
