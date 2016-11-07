@@ -86,32 +86,58 @@ doLEDCommand (LED *leds[], vector<string> &args)
 
 #else // LED_PWM
   // Take duty cycle string: R G B
-  int duty[3] = { -1, -1, -1 };
+  float duty[3] = { -1, -1, -1 };
 
-  if (args.size () < 3)
+  if (args.size () == 3)
+  {
+    /* Get the 3 duty cycles */
+    for (unsigned int i = 0; i < NLEDS && i < args.size (); i++)
+    {
+      istringstream s(args[i]);
+      s >> duty[i];
+      if (duty[i] < 0.0f || duty[i] > 100.0f)
+        cerr << "# bad colorspec [" << i << "] '" << args[i] << endl;
+    }
+  }
+  /* With one arg, take it as a hex color */
+  else if (args.size () == 1)
+  {
+    istringstream s(args[0]);
+    /* Skip a leading '#' */
+    if (s.peek() == '#')
+      s.seekg(1);
+
+    unsigned int code;
+    s.setf (ios::hex, ios::basefield);
+    s >> code;
+    if (s.bad ())
+    {
+      cerr << "# bad hex colorspec" << endl;
+      return;
+    }
+    duty[0] = 100.0f * ((float)((code >> 16) & 0xff)) / 255.0f;
+    duty[1] = 100.0f * ((float)((code >>  8) & 0xff)) / 255.0f;
+    duty[2] = 100.0f * ((float)( code        & 0xff)) / 255.0f;
+#ifdef DEBUG
+    cerr << "# hex " << args[0] << " -> [" << std::hex << code << "] "
+      << duty[0] << " | " << duty[1] << " | " << duty[2] << endl;
+#endif
+  }
+  else
   {
     cerr << "# bad colorspec" << endl;
     return;
-  }
-
-  /* Get the 3 duty cycles */
-  for (unsigned int i = 0; i < NLEDS && i < args.size (); i++)
-  {
-    istringstream s(args[i]);
-    s >> duty[i];
-    if (duty[i] < 0 || duty[i] > 100)
-      cerr << "# bad colorspec [" << i << "] '" << args[i] << endl;
   }
 
   /* Then pass them to the PWMs  */
   for (unsigned int i = 0; i < NLEDS; i++)
   {
     PWM *led = leds[i];
-    if (duty[i] == 0)
+    if (duty[i] == 0.0f)
       led->stop ();
     else
     {
-      led->setDutyCycle ((float)duty[i]);
+      led->setDutyCycle (duty[i]);
       led->run ();
     }
   }
