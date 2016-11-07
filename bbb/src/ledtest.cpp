@@ -85,20 +85,12 @@ doLEDCommand (LED *led, vector<string> &args)
     {
       led->setDutyCycle ((float)dutyPercent);
       led->run ();
+      return;
     }
-    else
-      led->stop ();
   }
 
-  // No args given, just toggle the run state
-  else
-  {
-    // Toggle output, or don't
-    if (led->isRunning ())
-      led->stop ();
-    else
-      led->run ();
-  }
+  /* No args or duty = 0, turn off */
+  led->stop ();
 #endif // LED_PWM
 
 }
