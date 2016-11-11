@@ -13,25 +13,26 @@ import com.obd.infrared.log.LogToEditText;
 import com.obd.infrared.patterns.PatternAdapter;
 import com.obd.infrared.patterns.PatternConverter;
 import com.obd.infrared.patterns.PatternType;
-import com.obd.infrared.transmit.TransmitInfo;
 import com.obd.infrared.transmit.TransmitterType;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
+import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, CvCameraViewListener2 {
 
-    private LogToEditText log;
-    private InfraRed infraRed;
-    private PatternAdapter patternAdapter;
-
+    private LogToEditText        log;
+    private InfraRed             infraRed;
+    private PatternAdapter       patternAdapter;
     private CameraBridgeViewBase mOpenCvCameraView;
-    private boolean              mIsJavaCamera = true;
+    private Mat                  mat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,17 +48,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // setup InfraRed
         infraRed = new InfraRed(this, log);
-
-        // detect transmitter type
         TransmitterType transmitterType = infraRed.detect();
         log.log("TransmitterType: " + transmitterType);
-
-        // initialize transmitter by type
         infraRed.createTransmitter(transmitterType);
         patternAdapter = new PatternAdapter(log, transmitterType);
 
+        // setup camera
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.surface_view);
-        mOpenCvCameraView.setVisibility(SurfaceView.VISIBLE);
+        mOpenCvCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
         mOpenCvCameraView.setCvCameraViewListener(this);
     }
 
@@ -68,6 +66,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 case LoaderCallbackInterface.SUCCESS:
                     log.log("OpenCV: " + "OpenCV loaded successfully");
                     mOpenCvCameraView.enableView();
+                    mOpenCvCameraView.enableFpsMeter();
                     break;
                 default:
                     super.onManagerConnected(status);
@@ -83,7 +82,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         if (!OpenCVLoader.initDebug()) {
             log.log("OpenCV: " + "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this, mLoaderCallback);
         } else {
             log.log("OpenCV: " + "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
@@ -105,7 +104,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
         infraRed.stop();
 
         if (mOpenCvCameraView != null)
@@ -117,20 +115,45 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void onCameraViewStarted(int width, int height) {
+        mat = new Mat(height, width, CvType.CV_8UC4);
+        log.log("OpenCV: " + "Preview (" + mat.rows() + "," + mat.cols() + "," + mat.channels() + ")");
     }
 
     public void onCameraViewStopped() {
-    }
-
-    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        return inputFrame.rgba();
+        mat.release();
     }
 
     @Override
-    public void onPause()
-    {
+    public void onPause() {
         super.onPause();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
+    }
+
+    @Override
+    public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+        mat = inputFrame.rgba();
+        int rows = mat.rows();
+        int cols = mat.cols();
+        int channels = mat.channels();
+
+        double r=0.0, g=0.0, b=0.0;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                double d[] = mat.get(i, j);
+                r += d[0];
+                g += d[1];
+                b += d[2];
+            }
+        }
+
+        int cells = rows * cols;
+        r /= cells;
+        g /= cells;
+        b /= cells;
+
+        log.log("OpenCV: " + "Sum (" + r + "," + g + "," + b + ")");
+
+        return mat;
     }
 }
