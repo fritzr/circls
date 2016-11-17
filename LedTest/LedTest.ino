@@ -1,7 +1,7 @@
 #define RED   10
-#define GREEN 11
-#define BLUE  9
-#define ANODE 8
+#define GREEN 9
+#define BLUE  11
+#define ANODE 12
 //define CATHODE
 
 #define IR_OUT 3

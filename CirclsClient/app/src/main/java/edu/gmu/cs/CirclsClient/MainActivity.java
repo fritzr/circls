@@ -3,7 +3,6 @@ package edu.gmu.cs.CirclsClient;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -32,7 +31,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private InfraRed             infraRed;
     private PatternAdapter       patternAdapter;
     private CameraBridgeViewBase mOpenCvCameraView;
-    private Mat                  mat;
+
+    static {
+        System.loadLibrary("native-lib");
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,15 +116,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public void onCameraViewStarted(int width, int height) {
-        mat = new Mat(height, width, CvType.CV_8UC4);
-        log.log("OpenCV: " + "Preview (" + mat.rows() + "," + mat.cols() + "," + mat.channels() + ")");
-    }
-
-    public void onCameraViewStopped() {
-        mat.release();
-    }
-
     @Override
     public void onPause() {
         super.onPause();
@@ -131,29 +124,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
+    public void onCameraViewStarted(int width, int height) {
+        log.log("OpenCV: " + "Preview (" + width + "," + height + ")");
+    }
+
+    @Override
+    public void onCameraViewStopped() {
+    }
+
+    @Override
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        mat = inputFrame.rgba();
-        int rows = mat.rows();
-        int cols = mat.cols();
-        int channels = mat.channels();
-
-        double r=0.0, g=0.0, b=0.0;
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                double d[] = mat.get(i, j);
-                r += d[0];
-                g += d[1];
-                b += d[2];
-            }
-        }
-
-        int cells = rows * cols;
-        r /= cells;
-        g /= cells;
-        b /= cells;
-
-        log.log("OpenCV: " + "Sum (" + r + "," + g + "," + b + ")");
-
+        Mat mat = inputFrame.rgba();
+        int rgb[] = ImageProcessor(mat.getNativeObjAddr());
+        log.log("RGB: (" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
         return mat;
     }
+
+    private native int[] ImageProcessor(long inputFrame);
 }
