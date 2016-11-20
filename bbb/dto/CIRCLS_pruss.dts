@@ -1,0 +1,41 @@
+/*
+* Fritz Reese
+*
+* Here we use the PRU output pins to manually PWM each color pin as necessary.
+* We use P9.29-P9.31 (PRU0 outputs 0-2).
+*
+*/
+
+/dts-v1/;
+/plugin/;
+
+/{
+  compatible = "ti,beaglebone", "ti,beaglebone-black";
+  part-number = "CIRCLS_pruss";
+  version = "00A0";
+
+  exclusive-use = "P9.29", "P9.30", "P9.31", "pru0";
+
+  fragment@0 {
+    target = <&am33xx_pinmux>;
+    __overlay__ {
+      circls_pru_pins: CIRCLS_pruss {
+        pinctrl-single,pins = <
+          0x194 0x05  // P9_29 PINS$111 PR1_PRU0_PRU_R30_1
+          0x198 0x05  // P9_30 PINS$112 PR1_PRU0_PRU_R30_2
+          0x190 0x05  // P9_31 PINS$110 PR1_PRU0_PRU_R30_0
+        >;
+      };
+    };
+  };
+
+  fragment@1 {
+    target = <&pruss>;
+    __overlay__ {
+      status = "okay";
+      pinctrl-names = "default";
+      pinctrl-0 = <&circls_pru_pins>;
+    };
+  };
+
+};

@@ -1,9 +1,12 @@
 PROG_COMMON=sysfs GPIO PWM
-PROG_BIN=ledtest
+PROG_BIN=ledtest xmit
+PRU_BIN=xmit
 
 PROG_TARGETS=$(PROG_BIN:%=$(BIN)/%)
 PROG_DEPS=$(PROG_COMMON:%=$(BUILD)/%.o)
 PROG_SRC=$(PROG_BIN:%=$(SRC)/%.cpp)
+
+PRU_TARGETS=$(PRU_BIN:%=$(BIN)/%.bin)
 
 SRC?=src
 BIN?=bin
@@ -14,13 +17,14 @@ CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x
 LDLIBS=-lpthread
 
-all: $(PROG_BIN)
+all: $(PROG_BIN) $(PRU_TARGETS)
 
 # special targets to build apps with different circuits or flags
 gpio: CPPFLAGS+=-DLED_GPIO
 pwm: CPPFLAGS+=-DLED_PWM
 debug: CPPFLAGS+=-DDEBUG
 gpio pwm debug: $(PROG_BIN)
+xmit: LDLIBS+=-lprussdrvd -lm
 
 .PHONY: all dto gpio pwm $(PROG_BIN)
 
@@ -34,6 +38,9 @@ $(PROG_BIN): %: $(BUILD) $(BIN) $(BIN)/%
 
 $(PROG_TARGETS): $(BIN)/%: $(PROG_DEPS) $(BUILD)/%.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(PRU_TARGETS): $(BIN)/%.bin: $(SRC)/%.p
+	pasm -b $< $(BIN)/$*
 
 # Build intermediate objects
 
