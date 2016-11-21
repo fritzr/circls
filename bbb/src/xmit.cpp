@@ -42,12 +42,12 @@ usage (const char *prog, const char *errmsg="") __attribute__((noreturn));
 static void
 usage (const char *prog, const char *errmsg)
 {
-  cerr << "usage: " << prog << " [-dv] <frequency>[KM]" << endl;
+  cerr << "usage: " << prog << " [-v] [-d <duty>] <frequency>[KM]" << endl;
   cerr << "Cycle through transmittable symbols with the given symbol frequency."
        << endl << "The frequency may end in 'K' or 'M' for kHz or MHz." << endl
        << "Options:" << endl
-       << "    -v\tverbose output" << endl
-       << "    -d\tdebug mode (implies -v, does a dry-run)" << endl
+       << "    -v\t\tverbose output" << endl
+       << "    -d <duty>\tduty cycle (0 - 100)" << endl
        << errmsg << endl;
   exit(1);
 }
@@ -55,16 +55,18 @@ usage (const char *prog, const char *errmsg)
 static void
 getOptions (pru_xmit_info_t &info, int argc, char *argv[])
 {
-  bool debug = false;
   bool verbose = false;
+  unsigned long duty = 50; // percent
+  char *duty_str = NULL;
 
   int opt;
-  while ((opt = getopt (argc, argv, "vd")) != -1)
+  while ((opt = getopt (argc, argv, "vd:")) != -1)
   {
     switch (opt)
     {
       case 'd': // debug
-        debug = true; /* fallthrough */
+        duty_str = optarg;
+        break;
       case 'v':
         verbose = true;
         break;
@@ -76,6 +78,16 @@ getOptions (pru_xmit_info_t &info, int argc, char *argv[])
   if (optind >= argc)
     usage (argv[0], "expected <frequency_hz> argument");
 
+  // Get duty cycle
+  if (duty_str)
+  {
+    istringstream duty_is (duty_str);
+    duty_is >> duty;
+    if (duty_is.bad () || duty > 100)
+      usage (argv[0], "bad duty cycle percentage");
+  }
+
+  // Parse frequency string, which may end in [kKmM]
   double fdiv = 0;
   char *freq_str = argv[optind];
   char *end = argv[optind];
@@ -122,9 +134,10 @@ getOptions (pru_xmit_info_t &info, int argc, char *argv[])
     usage (argv[0], "period too large");
 
   info.symbol_period_ns = static_cast<uint32_t> (period_ns);
-  // TODO hard-coded intra-symbol period/duty-cycle
-  info.period_ns = info.symbol_period_ns / 4;
-  info.duty_ns = info.period_ns / 2; // 50%
+
+  // hard-coded intra-symbol period/duty-cycle
+  info.period_ns = 2000; // 500kHz
+  info.duty_ns = (info.period_ns * duty) / 100;
 
   if (verbose)
   {
@@ -136,12 +149,9 @@ getOptions (pru_xmit_info_t &info, int argc, char *argv[])
 
   if ((info.symbol_period_ns % info.period_ns) != 0)
   {
-    cerr << "symbol period not fdivisible by PWM period!" << endl;
+    cerr << "symbol period not divisible by PWM period!" << endl;
     exit (2);
   }
-
-  if (debug)
-    exit (0);
 }
 
 static volatile bool run;
