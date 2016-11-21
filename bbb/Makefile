@@ -17,13 +17,23 @@ BIN?=bin
 LIB?=lib
 BUILD?=build
 
+INCLUDES=-I$(LIB)/scrambler -I$(LIB)/rscode-1.3
 CXX?=g++
 CPPFLAGS+=
-CXXFLAGS+=-g -Wall -std=c++0x
+CXXFLAGS+=-g -Wall -std=c++0x $(INCLUDES)
 LDFLAGS+=-L$(BIN)
 LDLIBS=
 
-all: $(PROG_BIN) $(PRU_TARGETS)
+# external library targets
+LIBDIRS=$(shell ls -dF $(LIB)/* | grep '/$$')
+LIBS=$(LIBDIRS:$(LIB)/%=%)
+LIB_TARGETS=$(addprefix lib-, $(LIBS))
+
+all: $(PROG_BIN) $(PRU_TARGETS) $(LIB_TARGETS)
+
+# depend on each lib file under lib/*/, lib-* named after the subdirectory
+lib-rscode-1.3: libecc.so
+lib-scrambler: libscrambler.so
 
 # special targets to build apps with different circuits or flags
 gpio: CPPFLAGS+=-DLED_GPIO
@@ -38,13 +48,12 @@ gpio pwm debug: $(PROG_BIN)
 $(BIN)/ledtest: $(LEDTEST_DEPS)
 $(BIN)/ledtest: LDLIBS+=-lpthread
 
-xmit: LDLIBS+=-lprussdrvd -lm -lecc
-xmit: $(BIN)/libecc.so
+xmit: LDLIBS+=-lprussdrvd -lm -lecc -lscrambler
+xmit: lib-rscode-1.3 lib-scrambler
 
 # specific targets for each library
-$(BIN)/libecc.so: $(LIB)/rscode-1.3
 
-.PHONY: all dto gpio pwm xmit $(PROG_BIN)
+.PHONY: all dto gpio pwm xmit $(PROG_BIN) $(LIB_TARGETS)
 
 # CD down into 'dto' to build device tree overlays
 dto:
@@ -72,8 +81,8 @@ $(BUILD) $(BIN):
 	mkdir -p $@
 
 # Build external dependency libraries
-$(BIN)/libecc.so:
-	@$(MAKE) -C $< && cp $</libecc.so $@
+$(LIB_TARGETS): lib-%:
+	@$(MAKE) -C $(LIB)/$* && cp $(LIB)/$*/$< $(BIN)/$<
 
 clean:
 	@rm -rf $(BUILD)
