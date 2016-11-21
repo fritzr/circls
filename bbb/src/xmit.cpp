@@ -149,14 +149,30 @@ static volatile bool run;
 static void
 handle_interrupt(int signum)
 {
-  cerr << "caught interrupt" << endl;
-  run = false;
+  if (run)
+  {
+    run = false;
+    pru_data->halt = 1;
+    cout << "sent halt" << endl;
+  }
+  // After two interrupts, force quit
+  else
+  {
+    cerr << "force quit" << endl;
+    /* Disable PRU and close memory mappings.  */
+    prussdrv_pru_disable (PRU_NUM);
+    prussdrv_exit ();
+
+    exit(2);
+  }
 }
 
 int
 main (int argc, char *argv[])
 {
   int ret = 2;
+  int evt;
+  tpruss_intc_initdata interrupts = PRUSS_INTC_INITDATA;
 
   if (getuid () != 0) {
     cerr << "must be root" << endl;
@@ -186,7 +202,9 @@ main (int argc, char *argv[])
 
   // events
   prussdrv_open (PRU_EVTOUT_0);
-  //prussdrv_open (PRU_EVTOUT_1);
+
+  // map interrupts
+  prussdrv_pruintc_init(&interrupts);
 
   // Copy data to PRU memory
   if (prussdrv_map_prumem (PRUSS0_PRU0_DATARAM,
@@ -209,13 +227,9 @@ main (int argc, char *argv[])
   run = true;
   signal (SIGINT,  handle_interrupt);
   signal (SIGQUIT, handle_interrupt);
-  while (run)
-  {
-    usleep (20 * 1000); // 200ms
-  }
 
-  pru_data->halt = 1;
-  cout << "sent halt" << endl;
+  evt = prussdrv_pru_wait_event (PRU_EVTOUT_0);
+  cout << "PRU done, event " << evt << endl;
 
   ret = 0;
 done:
