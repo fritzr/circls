@@ -180,8 +180,8 @@ static unsigned char get_parity_memo (max_parity_t i)
   /* if we actually need to compute the parity,
    * just xor the last bit with the parity of the rest of the bits */
   parity = get_parity_memo (i >> 1) ^ (i & 1);
-  parity_bitmap[i] |= parity << parity_selbit;
-  parity_found[i]  |= parity_selmask;
+  parity_bitmap[index] |= parity << parity_selbit;
+  parity_found[index]  |= parity_selmask;
   return parity >> parity_selbit;
 }
 
