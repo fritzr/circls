@@ -1,6 +1,10 @@
-PROG_COMMON=sysfs GPIO PWM
+#PROG_COMMON=sysfs GPIO PWM
+PROG_COMMON=
 PROG_BIN=ledtest xmit
 PRU_BIN=xmit
+
+LEDTEST_COMMON=sysfs GPIO PWM
+LEDTEST_DEPS=$(LEDTEST_COMMON:%=$(BUILD)/%.o)
 
 PROG_TARGETS=$(PROG_BIN:%=$(BIN)/%)
 PROG_DEPS=$(PROG_COMMON:%=$(BUILD)/%.o)
@@ -10,23 +14,37 @@ PRU_TARGETS=$(PRU_BIN:%=$(BIN)/%.bin)
 
 SRC?=src
 BIN?=bin
+LIB?=lib
 BUILD?=build
 
 CXX?=g++
 CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x
-LDLIBS=-lpthread
+LDFLAGS+=-L$(BIN)
+LDLIBS=
 
 all: $(PROG_BIN) $(PRU_TARGETS)
 
 # special targets to build apps with different circuits or flags
 gpio: CPPFLAGS+=-DLED_GPIO
-pwm: CPPFLAGS+=-DLED_PWM
-debug: CPPFLAGS+=-DDEBUG
-gpio pwm debug: $(PROG_BIN)
-xmit: LDLIBS+=-lprussdrvd -lm
+gpio: LDLIBS+=-lpthread
 
-.PHONY: all dto gpio pwm $(PROG_BIN)
+pwm: CPPFLAGS+=-DLED_PWM
+
+debug: CPPFLAGS+=-DDEBUG
+
+gpio pwm debug: $(PROG_BIN)
+
+$(BIN)/ledtest: $(LEDTEST_DEPS)
+$(BIN)/ledtest: LDLIBS+=-lpthread
+
+xmit: LDLIBS+=-lprussdrvd -lm -lecc
+xmit: $(BIN)/libecc.so
+
+# specific targets for each library
+$(BIN)/libecc.so: $(LIB)/rscode-1.3
+
+.PHONY: all dto gpio pwm xmit $(PROG_BIN)
 
 # CD down into 'dto' to build device tree overlays
 dto:
@@ -52,6 +70,10 @@ $(BUILD)/%.o: $(SRC)/%.cpp
 
 $(BUILD) $(BIN):
 	mkdir -p $@
+
+# Build external dependency libraries
+$(BIN)/libecc.so:
+	@$(MAKE) -C $< && cp $</libecc.so $@
 
 clean:
 	@rm -rf $(BUILD)
