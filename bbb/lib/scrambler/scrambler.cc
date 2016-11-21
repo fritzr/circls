@@ -151,7 +151,7 @@ typedef BITS_TYPE(MAX_PARITY_BITS) max_parity_t;
  * Then the 6-bit value 'bitsel' selects a bit in parity_bitmap[index],
  * such that parity_bitmap[index] & (1 << bitsel) is the parity of x.
  */
-#define PARITY_BITMAP_ENTRIES (MAX_PARITY_BITS>>BITSEL_BITS)
+#define PARITY_BITMAP_ENTRIES ((1u << (MAX_PARITY_BITS - 1u)) >> BITSEL_BITS)
 static parity_bitmap_t parity_bitmap[PARITY_BITMAP_ENTRIES];
 
 static unsigned char get_parity_memo (max_parity_t i)
