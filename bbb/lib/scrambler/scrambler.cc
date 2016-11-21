@@ -127,7 +127,7 @@ typedef BITS_TYPE(PARITY_BITMAP_BITS) parity_bitmap_t;
  * For example when set to 32, we support looking up the parity of any
  * 32-bit number. The larger this is, the more space the parity table will
  * take up.  */
-#define MAX_PARITY_BITS 32 /* configurable */
+#define MAX_PARITY_BITS 8 /* configurable */
 
 /* INDEX_BITS - the number of bits used for index into the parity_bitmap.
  * This is the bit width of the largest parity number,
