@@ -38,8 +38,8 @@ struct config {
   seed_t seed_mask (void) const;
 
   /* Default config settings.  */
-  config (seed_t seed=SCRAMBLER_DEFAULT_SEED,
-      unsigned char seed_len=SCRAMBLER_DEFAULT_LEN);
+  config (unsigned char seed_len=SCRAMBLER_DEFAULT_LEN,
+      seed_t seed=SCRAMBLER_DEFAULT_SEED);
 
   /* Copy constructor.  */
   config (const config *other);
@@ -47,12 +47,12 @@ struct config {
 
 class Scrambler {
 protected:
-  virtual ~Scrambler() {}
-
   /* Protected default constructor.  */
   Scrambler() {}
 
 public:
+  virtual ~Scrambler() {}
+
   /* Allocate and initialize a Scrambler which can be used to perform
    * the functions below. If the config given is NULL, use default options. */
   static Scrambler *create (const config *conf_in=0);
@@ -64,6 +64,7 @@ public:
 
   /* Get the scrambler config settings. */
   virtual err_t get_config (config *conf_out) const=0;
+  virtual seed_t get_seed (void) const=0;
 
   /* Generate and return a random seed, storing it in this instance as well. */
   virtual seed_t rseed (void)=0;

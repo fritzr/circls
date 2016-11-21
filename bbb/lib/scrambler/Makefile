@@ -14,8 +14,10 @@ all: $(SHARED_OUT)
 debug: CXXFLAGS=$(CXXFLAGS_DEBUG)
 debug: clean $(SHARED_OUT)
 
-test: test.cc
-	$(CXX) -o $@ $(CPPFLAGS) $(CXXFLAGS_DEBUG) -L. -lscrambler -Wl,-rpath,.
+test: CXXFLAGS_DEBUG+=-L. -Wl,-rpath,.
+test: LDLIBS+=-lscrambler
+test: test.cc $(SHARED_OUT)
+	$(CXX) -o $@ $< $(CPPFLAGS) $(CXXFLAGS_DEBUG) $(LDFLAGS) $(LDLIBS)
 
 .PHONY: all debug
 

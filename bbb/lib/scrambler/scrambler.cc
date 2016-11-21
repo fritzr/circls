@@ -25,6 +25,7 @@ public:
   /* Override */
   err_t get_config (config *conf_out) const;
   seed_t rseed (void);
+  seed_t get_seed (void) const;
 }; // end class ScramblerImpl
 
 }; // end namespace scrambler
@@ -34,7 +35,7 @@ using namespace scrambler;
 /*************** config ****************/
 
 /* Config default constructor.  */
-config::config (seed_t _seed, unsigned char _seed_len)
+config::config (unsigned char _seed_len, seed_t _seed)
   : seed(_seed), seed_len(_seed_len)
 {
 }
@@ -80,11 +81,14 @@ ScramblerImpl::get_config (config *conf_out) const
 }
 
 seed_t
+ScramblerImpl::get_seed (void) const
+{
+  return conf.seed;
+}
+
+seed_t
 ScramblerImpl::rseed (void)
 {
-  struct timeval tv = {0};
-  gettimeofday (&tv, NULL);
-  srandom (tv.tv_usec);
   seed_t seed = random ();
   conf.seed = seed & conf.seed_mask ();
   return seed;
@@ -96,11 +100,14 @@ static void init_parity (void);
 Scrambler *
 Scrambler::create (const config *conf_in)
 {
-  static bool parity_initialized = false;
-  if (!parity_initialized)
+  static bool initialized = false;
+  if (!initialized)
   {
     init_parity ();
-    parity_initialized = true;
+    struct timeval tv = {0};
+    gettimeofday (&tv, NULL);
+    srandom (tv.tv_usec);
+    initialized = true;
   }
   return new ScramblerImpl (conf_in);
 }
@@ -151,7 +158,7 @@ typedef BITS_TYPE(MAX_PARITY_BITS) max_parity_t;
  * Then the 6-bit value 'bitsel' selects a bit in parity_bitmap[index],
  * such that parity_bitmap[index] & (1 << bitsel) is the parity of x.
  */
-#define PARITY_BITMAP_ENTRIES ((1u << (MAX_PARITY_BITS - 1u)) >> BITSEL_BITS)
+#define PARITY_BITMAP_ENTRIES ((1u << MAX_PARITY_BITS) >> BITSEL_BITS)
 static parity_bitmap_t parity_bitmap[PARITY_BITMAP_ENTRIES];
 
 static unsigned char get_parity_memo (max_parity_t i)
@@ -182,18 +189,23 @@ static unsigned char get_parity_memo (max_parity_t i)
   parity = get_parity_memo (i >> 1) ^ (i & 1);
   parity_bitmap[index] |= parity << parity_selbit;
   parity_found[index]  |= parity_selmask;
-  return parity >> parity_selbit;
+  return parity;
 }
 
 static void init_parity (void)
 {
-  /* Getting the parity of 2^n - 1 should require the parity of every other
-   * number (?TODO? verify this).  */
-  get_parity_memo (1 << (MAX_PARITY_BITS-1));
+  /* Force parity generation of every available number.
+   * This way get_parity can stay inlined.
+   * TODO for a more generic approach, just call get_parity_memo instead of
+   * get_parity for each number you need the parity of, and soon enough
+   * it will be cached appropriately. */
+  const max_parity_t max = (1u << (MAX_PARITY_BITS)) - 1u;
+  for (max_parity_t i = 0; i < max; i++)
+    get_parity_memo (i);
 }
 
 /* Constant-time parity lookup using static memoized parity table.  */
-unsigned char get_parity (max_parity_t i)
+static inline unsigned char get_parity (max_parity_t i)
 {
   unsigned char bitsel = (i & BITSEL_MASK);
   return (parity_bitmap[i >> BITSEL_BITS] & (1 << bitsel)) >> bitsel;
@@ -235,7 +247,7 @@ Scrambler::scramble (const void *__restrict in, void *__restrict out,
 
   unsigned const char *in_  = reinterpret_cast<const unsigned char *> (in);
   unsigned char *out_ = reinterpret_cast<unsigned char *> (out);
-  const unsigned char *const end = in_ + size;
+  const unsigned char *const end = out_ + size;
 
   while (out_ != end)
   {
