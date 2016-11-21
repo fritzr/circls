@@ -128,7 +128,7 @@ PWM_CYCLE_END:
         // Here we cycle through the three symbol bits. If we just did bit 2
         // we need to add an extra to skip 3 and go to 4 (which becomes 0 when
         // masked below).
-        QBBC    SYMBOL_NEXT, REG_OUTBIT, 2
+        QBBC    SYMBOL_NEXT, REG_OUTBIT, 1
         ADD     REG_OUTBIT, REG_OUTBIT, 1
 
 SYMBOL_NEXT:
