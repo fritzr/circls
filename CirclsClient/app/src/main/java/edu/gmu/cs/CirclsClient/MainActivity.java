@@ -10,6 +10,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.os.Process;
 
 import com.obd.infrared.InfraRed;
 import com.obd.infrared.log.LogToEditText;
@@ -24,9 +25,7 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, CvCameraViewListener2 {
@@ -128,6 +127,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
+
+
         Button transmitButton = (Button) this.findViewById(R.id.transmit_button);
         transmitButton.setOnClickListener(this);
 
@@ -174,9 +176,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        Snackbar.make(v, "Reading LED...", Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show();
-
         Snackbar.make(v, "Sending IR...", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show();
         if (infraRed != null && haveIR)
