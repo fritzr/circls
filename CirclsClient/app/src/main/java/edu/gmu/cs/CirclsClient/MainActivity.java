@@ -178,6 +178,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         Snackbar.make(v, "Sending IR...", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show();
+        log.clear();
         if (infraRed != null && haveIR)
         infraRed.transmit(patternAdapter.createTransmitInfo(
                 new PatternConverter(PatternType.Cycles, 38000,494,114,38,38,38,38,38,38,38,38,38,38,38,114,38,1)));

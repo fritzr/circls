@@ -61,4 +61,8 @@ public class LogToEditText extends Logger {
     public void error(String description, Exception exception) {
         strings.add("ERROR [" + tag + "]: ERROR { Description: " + description + "; Exception: " + exception.getMessage() + " }");
     }
+
+    public void clear() {
+        textView.setText("");
+    }
 }
