@@ -27,6 +27,8 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import java.util.Arrays;
+
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, CvCameraViewListener2 {
 
@@ -34,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private InfraRed             infraRed;
     private PatternAdapter       patternAdapter;
     private CameraBridgeViewBase mOpenCvCameraView;
+    private boolean b = false;
 
     private static final int CAMERA_PERMS = 0xbeef;
     protected boolean haveCamera = false;
@@ -46,33 +49,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     protected void getPermissions() {
-        // Here, thisActivity is the current activity
         if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED) {
+            Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
 
-            // Should we show an explanation?
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_CONTACTS)) {
-
-                // Show an explanation to the user *asynchronously* -- don't block
-                // this thread waiting for the user's response! After the user
-                // sees the explanation, try again to request the permission.
-
-            } else {
-
-                // No explanation needed, we can request the permission.
-
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.CAMERA, Manifest.permission.TRANSMIT_IR,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE},
-                        CAMERA_PERMS);
-
-                // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
-                // app-defined int constant. The callback method gets the
-                // result of the request.
-            }
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA, Manifest.permission.TRANSMIT_IR,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE},
+                    CAMERA_PERMS);
         }
     }
 
@@ -179,6 +163,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Snackbar.make(v, "Sending IR...", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show();
         log.clear();
+        b = true;
         if (infraRed != null && haveIR)
         infraRed.transmit(patternAdapter.createTransmitInfo(
                 new PatternConverter(PatternType.Cycles, 38000,494,114,38,38,38,38,38,38,38,38,38,38,38,114,38,1)));
@@ -217,8 +202,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
         Mat mat = inputFrame.rgba();
-        int lab[] = ImageProcessor(mat.getNativeObjAddr());
-        log.log("Lab: (" + lab[0] + "," + lab[1] + "," + lab[2] + ")");
+
+        if (b) {
+            int data[] = ImageProcessor(mat.getNativeObjAddr());
+            String row = Arrays.toString(data);
+            log.log("Lab: " + row);
+            b = false;
+        }
+
         return mat;
     }
 
