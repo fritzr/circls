@@ -217,8 +217,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
         Mat mat = inputFrame.rgba();
-        int rgb[] = ImageProcessor(mat.getNativeObjAddr());
-        log.log("RGB: (" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
+        int lab[] = ImageProcessor(mat.getNativeObjAddr());
+        log.log("Lab: (" + lab[0] + "," + lab[1] + "," + lab[2] + ")");
         return mat;
     }
 

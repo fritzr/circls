@@ -4,6 +4,19 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
+# supery hacky, but seems like the only way to read a path from local.properties
+file(STRINGS "${PROJECT_SOURCE_DIR}/../local.properties" LOCAL_PROPERTIES)
+foreach(item ${LOCAL_PROPERTIES})
+  string(REGEX MATCH "opencv.dir=.+" item ${item})
+  if(item)
+    string(REGEX REPLACE ".+=" "" item ${item})
+    string(REPLACE "\\\\" "/" item ${item})
+    string(REPLACE "\\:" ":" OpenCvDir ${item})
+  endif()
+endforeach()
+message(STATUS "OpenCV: ${OpenCvDir}")
+
+
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds it for you.
@@ -33,6 +46,7 @@ find_library( # Sets the name of the path variable.
               # you want CMake to locate.
               log )
 
+
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in the
 # build script, prebuilt third-party libraries, or system libraries.
@@ -42,22 +56,13 @@ target_link_libraries( # Specifies the target library.
 
                        # Links the target library to the log library
                        # included in the NDK.
-                       ${log-lib} )
+                       ${log-lib}
 
+                       # OpenCV libraries
+                       ${OpenCvDir}/libs/${CMAKE_ANDROID_ARCH_ABI}/libopencv_java3.so
+                       )
 
-# supery hacky, but seems like the only way to read a path from local.properties
-file(STRINGS "${PROJECT_SOURCE_DIR}/../local.properties" LOCAL_PROPERTIES)
-foreach(item ${LOCAL_PROPERTIES})
-  string(REGEX MATCH "opencv.dir=.+" item ${item})
-  if(item)
-    string(REGEX REPLACE ".+=" "" item ${item})
-    string(REPLACE "\\\\" "/" item ${item})
-    string(REPLACE "\\:" ":" OpenCvDir ${item})
-  endif()
-endforeach()
-
-message(STATUS "${OpenCvDir}")
 
 include_directories(
-    ${OpenCvDir}/include
+    ${OpenCvDir}/jni/include
 )
