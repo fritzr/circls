@@ -101,8 +101,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 return;
             }
 
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
     }
 
@@ -204,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Mat mat = inputFrame.rgba();
 
         if (b) {
-            int data[] = ImageProcessor(mat.getNativeObjAddr());
+            char data[] = ImageProcessor(mat.getNativeObjAddr());
             String row = Arrays.toString(data);
             log.log("Lab: " + row);
             b = false;
@@ -213,5 +211,5 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return mat;
     }
 
-    private native int[] ImageProcessor(long inputFrame);
+    private native char[] ImageProcessor(long inputFrame);
 }

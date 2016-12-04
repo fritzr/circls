@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
-# supery hacky, but seems like the only way to read a path from local.properties
+# super hacky, but seems like the only way to read a path from local.properties
 file(STRINGS "${PROJECT_SOURCE_DIR}/../local.properties" LOCAL_PROPERTIES)
 foreach(item ${LOCAL_PROPERTIES})
   string(REGEX MATCH "opencv.dir=.+" item ${item})

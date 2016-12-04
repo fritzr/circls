@@ -7,17 +7,18 @@ using namespace std;
 using namespace cv;
 
 extern "C"
-jintArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
+jcharArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
 
     int rows = matLab.rows;
     int cols = matLab.cols;
 
-    jint flat[cols][2];
+    // initialize flat frame
+    int flat[cols][2];
     memset(flat, 0, sizeof(flat));
 
-    // calculate total ab values for each column
+    // total ab values for each column
     uchar *data = matLab.data;
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
@@ -33,9 +34,34 @@ jintArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env, 
         flat[j][1] /= rows;
     }
 
-    jintArray ret = env.NewIntArray(cols * 2);
+    jcharArray ret = env.NewCharArray(cols);
     if (ret != NULL) {
-        env.SetIntArrayRegion(ret, 0, cols * 2, (jint*) flat);
+        jchar buf[cols];
+
+        // convert ab numbers to RGBYW representation
+        for (int j = 0; j < cols; j++) {
+            jchar c;
+
+            // shift ab values to +/- and truncate less significant bits
+            int a = (flat[j][0] - 128) & (0xf8);
+            int b = (flat[j][1] - 128) & (0xf8);
+
+            // +a = red; -a = green; -b = blue; +b = yellow;
+            if (a == b) {
+                c = 'w';
+            }
+            else if ((a & 0x7f) > (b & 0x7f)) {
+                c = (a < 0) ? 'G' : 'R';
+            }
+            else {
+                c = (b < 0) ? 'B' : 'Y';
+            }
+
+            buf[j] = c;
+        }
+
+        // copy results to return
+        env.SetCharArrayRegion(ret, 0, cols, buf);
     }
     return ret;
 }
