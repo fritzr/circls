@@ -51,10 +51,10 @@ jcharArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env,
                 c = 'w';
             }
             else if ((a & 0x7f) > (b & 0x7f)) {
-                c = (a < 0) ? 'G' : 'R';
+                c = (a & 0x80) ? 'G' : 'R';
             }
             else {
-                c = (b < 0) ? 'B' : 'Y';
+                c = (b & 0x80) ? 'B' : 'Y';
             }
 
             buf[j] = c;
