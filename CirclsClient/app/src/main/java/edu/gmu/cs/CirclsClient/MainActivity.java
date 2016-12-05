@@ -3,7 +3,6 @@ package edu.gmu.cs.CirclsClient;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -141,11 +140,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
 
-        Button transmitButton = (Button) this.findViewById(R.id.transmit_button);
+        Button transmitButton = (Button) findViewById(R.id.transmit_button);
         transmitButton.setOnClickListener(this);
 
         // Log messages to EditText
-        EditText console = (EditText) this.findViewById(R.id.console);
+        EditText console = (EditText) findViewById(R.id.console);
         log = new LogToEditText(console, "CIRCLS");
 
         getPermissions();
