@@ -67,7 +67,7 @@ jcharArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env,
 */
 
 extern "C"
-jcharArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
+jcharArray Java_edu_gmu_cs_CirclsClient_RxWorker_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
 
