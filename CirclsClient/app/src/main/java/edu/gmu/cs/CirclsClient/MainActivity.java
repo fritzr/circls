@@ -9,80 +9,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.os.Process;
 
-import com.obd.infrared.InfraRed;
 import com.obd.infrared.log.LogToEditText;
-import com.obd.infrared.patterns.PatternAdapter;
-import com.obd.infrared.patterns.PatternConverter;
-import com.obd.infrared.patterns.PatternType;
-import com.obd.infrared.transmit.TransmitterType;
 
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.CameraBridgeViewBase;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
-import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
-import org.opencv.android.LoaderCallbackInterface;
-import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Mat;
-
-import java.util.Arrays;
-
-
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, CvCameraViewListener2 {
-
-    private LogToEditText log;
-    private InfraRed mInfraRed;
-    private PatternAdapter patternAdapter;
-    private CameraBridgeViewBase mCameraView;
-    private boolean b = false;
-
-    private static final int irCarrier = 33000;
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG = "CIRCLS Client";
     private static final int CAMERA_PERMS = 0xbeef;
     private static final int IR_PERMS = 0xbadd;
 
-    static {
-        System.loadLibrary("native-lib");
-    }
-
-    protected void setupCamera() {
-        mCameraView = (CameraBridgeViewBase) findViewById(R.id.surface_view);
-        mCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
-        mCameraView.setCvCameraViewListener(this);
-        mCameraView.enableFpsMeter();
-    }
-
-    protected void startCamera() {
-        if (mCameraView != null) {
-            mCameraView.enableView();
-        }
-    }
-
-    protected void stopCamera() {
-        if (mCameraView != null) {
-            mCameraView.disableView();
-        }
-    }
-
-    protected void setupIR() {
-        mInfraRed = new InfraRed(this, log);
-        TransmitterType transmitterType = mInfraRed.detect();
-        mInfraRed.createTransmitter(transmitterType);
-        patternAdapter = new PatternAdapter(log, transmitterType);
-        log.log("IR " + transmitterType);
-    }
-
-    protected void startIR() {
-        if (mInfraRed != null) {
-            mInfraRed.start();
-        }
-    }
-
-    protected void stopIR() {
-        if (mInfraRed != null) {
-            mInfraRed.stop();
-        }
-    }
+    private LogToEditText log;
+    private RxHandler rx = new RxHandler();
+    private TxHandler tx = new TxHandler();
 
     protected void getPermissions() {
         // request Camera permissions if needed
@@ -92,7 +29,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     new String[]{Manifest.permission.CAMERA},
                     CAMERA_PERMS);
         } else {
-            setupCamera();
+            rx.setup(findViewById(R.id.surface_view));
         }
 
         // request IR permissions if needed
@@ -102,7 +39,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     new String[]{Manifest.permission.TRANSMIT_IR},
                     IR_PERMS);
         } else {
-            setupIR();
+            tx.setup(this, log);
         }
     }
 
@@ -113,10 +50,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case CAMERA_PERMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     log.log("Camera granted");
-                    setupCamera();
+                    rx.setup(findViewById(R.id.surface_view));
                 } else {
                     log.log("Camera denied");
-                    stopCamera();
+                    rx.stop();
                 }
                 break;
             }
@@ -124,10 +61,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case IR_PERMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     log.log("IR granted");
-                    setupIR();
+                    tx.setup(this, log);
                 } else {
                     log.log("IR denied");
-                    stopIR();
+                    tx.stop();
                 }
                 break;
             }
@@ -139,57 +76,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
-
         Button transmitButton = (Button) findViewById(R.id.transmit_button);
         transmitButton.setOnClickListener(this);
 
         // Log messages to EditText
         EditText console = (EditText) findViewById(R.id.console);
-        log = new LogToEditText(console, "CIRCLS");
+        log = new LogToEditText(console, TAG);
 
         getPermissions();
     }
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS:
-                    log.log("OpenCV loaded successfully");
-                    startCamera();
-                    break;
-                default:
-                    super.onManagerConnected(status);
-                    break;
-            }
-        }
-    };
-
     @Override
     protected void onResume() {
         super.onResume();
-
-        if (OpenCVLoader.initDebug()) {
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-        }
-
-        startIR();
+        rx.start();
+        tx.start();
     }
 
     @Override
     public void onClick(View v) {
         log.clear();
-        b = true;
         int data[] = {494, 114, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 114, 38, 1};
-        send(data);
+        tx.send(data);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopIR();
-        stopCamera();
+        tx.stop();
+        rx.stop();
 
         if (log != null) {
             log.destroy();
@@ -199,39 +114,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onPause() {
         super.onPause();
-        stopIR();
-        stopCamera();
+        tx.stop();
+        rx.stop();
     }
 
-    @Override
-    public void onCameraViewStarted(int width, int height) {
-        log.log("Preview (" + width + "," + height + ")");
-    }
-
-    @Override
-    public void onCameraViewStopped() {
-    }
-
-    @Override
-    public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
-        Mat mat = inputFrame.rgba();
-
-        if (b) {
-            b = false;
-            char data[] = ImageProcessor(mat.getNativeObjAddr());
-            String row = Arrays.toString(data);
-            log.log(row);
-        }
-
-        return mat;
-    }
-
-    private void send(int data[]) {
-        if(mInfraRed != null) {
-            mInfraRed.transmit(patternAdapter.createTransmitInfo(
-                    new PatternConverter(PatternType.Cycles, irCarrier, data)));
-        }
-    }
-
-    private native char[] ImageProcessor(long inputFrame);
 }
