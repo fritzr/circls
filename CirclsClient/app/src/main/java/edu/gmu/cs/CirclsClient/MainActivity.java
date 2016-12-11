@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -176,7 +175,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         startIR();
     }
-
 
     @Override
     public void onClick(View v) {
