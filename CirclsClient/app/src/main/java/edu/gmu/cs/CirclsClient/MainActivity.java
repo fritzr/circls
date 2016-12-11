@@ -31,12 +31,13 @@ import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, CvCameraViewListener2 {
 
-    private LogToEditText        log;
-    private InfraRed             mInfraRed;
-    private PatternAdapter       patternAdapter;
+    private LogToEditText log;
+    private InfraRed mInfraRed;
+    private PatternAdapter patternAdapter;
     private CameraBridgeViewBase mCameraView;
     private boolean b = false;
 
+    private static final int irCarrier = 33000;
     private static final int CAMERA_PERMS = 0xbeef;
     private static final int IR_PERMS = 0xbadd;
 
@@ -88,8 +89,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                new String[]{ Manifest.permission.CAMERA },
-                CAMERA_PERMS);
+                    new String[]{Manifest.permission.CAMERA},
+                    CAMERA_PERMS);
         } else {
             setupCamera();
         }
@@ -98,8 +99,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.TRANSMIT_IR) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                new String[]{ Manifest.permission.TRANSMIT_IR },
-                IR_PERMS);
+                    new String[]{Manifest.permission.TRANSMIT_IR},
+                    IR_PERMS);
         } else {
             setupIR();
         }
@@ -180,10 +181,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         log.clear();
         b = true;
-        if (mInfraRed != null) {
-            mInfraRed.transmit(patternAdapter.createTransmitInfo(
-                    new PatternConverter(PatternType.Cycles, 38000, 494, 114, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 114, 38, 1)));
-        }
+        int data[] = {494, 114, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 114, 38, 1};
+        send(data);
     }
 
     @Override
@@ -225,6 +224,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         return mat;
+    }
+
+    private void send(int data[]) {
+        if(mInfraRed != null) {
+            mInfraRed.transmit(patternAdapter.createTransmitInfo(
+                    new PatternConverter(PatternType.Cycles, irCarrier, data)));
+        }
     }
 
     private native char[] ImageProcessor(long inputFrame);
