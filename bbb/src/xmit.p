@@ -13,24 +13,24 @@
   .u32 iperiod  // dimming [intra-symbol] period: time used for PWM dimming
   .u32 duty     // duty period: on time, less than or equal to iperiod
   .u16 data_len // number of dwords (4 bytes) in the data packet to xmit
-  .u8  halt     // whether to halt, set by the host
+  .u8  bhalt    // halt bit - set by the host to request termination
   .u8  pad      // unused
 .ends
 .assign pru_xmit_info, r4, r7, info // map tx info structure starting at r4
 #define DATA_START     16 // data starts immediately after info struct
 
 .struct pru_data_info
+  .u32 buf     // data word buffer, copied from register file
+  .u32 off     // PRU memory offset of next data block transfer
   .u16 left    // bytes of data left to xmit
-  .u16 off     // PRU memory offset of next data block transfer
   .u8  shift   // data shift amount, used to read 2 bits at a time to choose LED
   .u8  block   // size of next block transfer, usually DATA_BLK_BYTES
-  .u32 buf     // data word buffer, copied from register file
   .u8  reg     // register pointer to next data word in the register file
   .u8  reg_end // register pointer after the end of data in the register file
   .u8  bits    // which bits to set in the LED
   .u8  cycles  // number of cycles we've wasted with initializing code
 .ends
-.assign pru_data_info, r8, r10, data // map data info structure starting at r8
+.assign pru_data_info, r8, r11, data // map data info structure starting at r8
 
 // data is copied into the register file starting at this address, which
 // must be after all the mapped structures
@@ -76,7 +76,7 @@ START:
         LDI     data.off, DATA_START
         LDI     data.block, DATA_BLK_BYTES
         MOV     data.left, info.data_len
-        MVID    data.reg_end, &REGFILE_DATA_END
+        MVID    data.reg_end, REGFILE_DATA_END
 
         // We need to check whether the IPERIOD is divisible by SPERIOD.
         // If not, the duty cycle will be wrong and the xmit frequency will
@@ -99,8 +99,8 @@ CHECK_DIVIS: // while (x > 0) x -= y; if (x != 0) FAIL
 MAINLOOP:
         // Quit if the halt register is asserted
         // abuse the fact that we've loaded 0 into REG_LEDS
-        LBBO    info.halt, REG_LEDS, OFFSET(info.halt), SIZE(info.halt)
-        QBNE    END, info.halt, 0
+        LBBO    info.bhalt, REG_LEDS, OFFSET(info.bhalt), SIZE(info.bhalt)
+        QBNE    END, info.bhalt, 0
 
         // Keep track of the number of instruction cycles we've wasted up
         // to the point of the actual PWM loop. This is so we can perform
@@ -119,12 +119,12 @@ NEXT_DATA:
         QBLT    NEXT_REG, data.reg_end, data.reg // data.reg < data.reg_end
 
         // read a block at a time; or whatever is left, if less
-        MIN     data.block, data.block, data.left 
-        LBBO    &REGFILE_DATA, data.off, 0, data.block
-        ADD     data.off, data.off, data.block // increment data offset
-        SUB     data.left, data.left, data.block // decrement bytes left
+        MIN     r0, data.block, data.left // r0 is used for the block size
+        LBBO    REGFILE_DATA, data.off, 0, b0 // r0.b0 from above
+        ADD     data.off, data.off, r0 // increment data offset
+        SUB     data.left, data.left, r0.w0 // decrement bytes left
         // start reading registers from the start of data
-        MVID    data.reg, &REGFILE_DATA
+        MVID    data.reg, REGFILE_DATA
 
         ADD     data.cycles, data.cycles, 8 * NS_PER_INSTR
 
@@ -134,7 +134,8 @@ NEXT_REG:
         QBNE    SET_OUTBITS, data.shift, 0 // not done shifting
 
         // Load next data word from the register file
-        MVID    data.buf, *data.reg++
+        MVID    data.buf, data.reg
+        ADD     data.reg, data.reg, 4 // read 4 bytes at a time
 
         // we assume 4-CSK, so we read and shift 2 bits at a time
         // until we hit a shift of 32, so we shift 16 times
