@@ -1,110 +1,94 @@
 #include <jni.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "rs"
+#include "ezpwd/rs"
 
 using namespace std;
 using namespace cv;
 
-/*
-extern "C"
-jcharArray Java_edu_gmu_cs_CirclsClient_MainActivity_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
-    Mat matLab;
-    cvtColor(matRGB, matLab, CV_RGB2Lab);
 
-    int rows = matLab.rows;
-    int cols = matLab.cols;
+// takes an OpenCV Matrix of 3D pixels
+// returns a single averaged column of 3D pixels
+void flattenCols(Mat &mat, int32_t flat[][3]) {
+    // get Mat properties
+    int rows = mat.rows;
+    int cols = mat.cols;
+    uint8_t *data = (uint8_t *)mat.data;
+
+    // initialize flat array
+    memset(flat, 0, sizeof(int32_t) * rows);
+
+    for (int i = 0; i < rows; i++) {
+
+        // sum column values across the row
+        for (int j = 0; j < cols; j++) {
+            flat[i][0] += (*data++);
+            flat[i][1] += (*data++);
+            flat[i][2] += (*data++);
+        }
+
+        // average values for the row
+        flat[i][0] /= cols;
+        flat[i][1] /= cols;
+        flat[i][2] /= cols;
+    }
+}
+
+
+// takes an OpenCV Matrix of 3D pixels
+// returns a single averaged row of 3D pixels
+void flattenRows(Mat &mat, int32_t flat[][3]) {
+    // get Mat properties
+    int rows = mat.rows;
+    int cols = mat.cols;
+    uint8_t *data = (uint8_t *)mat.data;
 
     // initialize flat frame
-    int32_t flat[cols][2];
-    memset(flat, 0, sizeof(flat));
+    memset(flat, 0, sizeof(int32_t) * cols);
 
-    // total ab values for each row
-    uint8_t *data = (uint8_t *)matLab.data;
+    // sum values for each column across all rows
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            data++; // skip L
             flat[j][0] += (*data++);
             flat[j][1] += (*data++);
+            flat[j][2] += (*data++);
         }
     }
 
-    // average the ab values for each column
+    // average the values for each flat column
     for (int i = 0; i < cols; i++) {
         flat[i][0] /= rows;
         flat[i][1] /= rows;
+        flat[i][2] /= rows;
     }
-
-    jcharArray ret = env.NewCharArray(cols);
-    if (ret != NULL) {
-        jchar buf[cols];
-
-        // convert ab numbers to RGBYW representation
-        for (int i = 0; i < cols; i++) {
-            int a = flat[i][0] - 128;
-            int b = flat[i][1] - 128;
-            jchar c;
-
-            // +a = red; -a = green; -b = blue; +b = yellow;
-            if (a == b) {
-                c = 'w';
-            }
-            else if (abs(a) > abs(b)) {
-                c = (a < 0) ? 'G' : 'R';
-            }
-            else {
-                c = (b < 0) ? 'B' : 'Y';
-            }
-
-            buf[i] = c;
-        }
-
-        // copy results to return
-        env.SetCharArrayRegion(ret, 0, cols, buf);
-    }
-    return ret;
 }
-*/
+
 
 extern "C"
-jcharArray Java_edu_gmu_cs_CirclsClient_RxWorker_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
+JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxWorker_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
+    // convert RGB to Lab
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
 
-    int rows = matLab.rows;
-    int cols = matLab.cols;
+    // flatten frame
+    int pixels = matLab.rows;
+    int32_t frame[pixels][3];
+    flattenCols(matLab, frame);
 
-    // initialize flat frame
-    int32_t flat[rows][2];
-    memset(flat, 0, sizeof(flat));
-
-    // total ab values for each row
-    uint8_t *data = (uint8_t *)matLab.data;
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            data++; // skip L
-            flat[i][0] += (*data++);
-            flat[i][1] += (*data++);
-        }
-
-        // average the ab values
-        flat[i][0] /= cols;
-        flat[i][1] /= cols;
-    }
-
-    jcharArray ret = env.NewCharArray(rows);
+    jcharArray ret = env.NewCharArray(pixels);
     if (ret != NULL) {
-        jchar buf[rows];
+        jchar buf[pixels];
 
         // convert ab numbers to RGBYW representation
-        for (int i = 0; i < rows; i++) {
-            int a = flat[i][0] - 128;
-            int b = flat[i][1] - 128;
+        for (int i = 0; i < pixels; i++) {
+            int L = frame[i][0];
+            int a = frame[i][1] - 128;
+            int b = frame[i][2] - 128;
             jchar c;
 
             // +a = red; -a = green; -b = blue; +b = yellow;
             if (a == b) {
-                c = 'w';
+                c = (L == 0) ? '0' : '1';
             }
             else if (abs(a) > abs(b)) {
                 c = (a < 0) ? 'G' : 'R';
@@ -117,7 +101,8 @@ jcharArray Java_edu_gmu_cs_CirclsClient_RxWorker_ImageProcessor(JNIEnv &env, job
         }
 
         // copy results to return
-        env.SetCharArrayRegion(ret, 0, rows, buf);
+        env.SetCharArrayRegion(ret, 0, pixels, buf);
     }
+
     return ret;
 }
