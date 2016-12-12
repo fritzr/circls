@@ -34,7 +34,6 @@ all: $(PROG_BIN) $(PRU_TARGETS) $(LIB_TARGETS)
 # depend on each lib file under lib/*/, lib-* named after the subdirectory
 lib-rscode-1.3: libecc.so
 lib-scrambler: libscrambler.so
-lib-md5: libmd5.so
 
 # special targets to build apps with different circuits or flags
 gpio: CPPFLAGS+=-DLED_GPIO
@@ -49,8 +48,8 @@ gpio pwm debug: $(PROG_BIN)
 $(BIN)/ledtest: $(LEDTEST_DEPS)
 $(BIN)/ledtest: LDLIBS+=-lpthread
 
-xmit: LDLIBS+=-lprussdrvd -lm -lecc -lmd5
-xmit: lib-rscode-1.3 lib-md5
+xmit: LDLIBS+=-lprussdrvd -lm -lecc
+xmit: lib-rscode-1.3
 
 # specific targets for each library
 
