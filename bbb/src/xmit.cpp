@@ -11,16 +11,25 @@
 #include <math.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include <cstring>
 #include <cstdlib>
 #include <cctype>
+#include <cstdio>
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <sstream>
 
+extern "C"
+{
 #include "ecc.h" // rs-lib
+};
 
 using namespace std;
 
@@ -58,16 +67,16 @@ static pru_xmit_info_t *pru_data; // start of PRU memory - begins with tx info
 
 struct mapped_file {
   size_t len;
-  void *mem;
+  uint8_t *mem;
   int fd;
 };
 
 static void
-dump_buf (uint8_t *buf, size_t buflen, const char *msg=NULL)
+dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
 {
   if (msg)
     cout << msg << ":" << endl;
-  for (size_t i = 0; i < buflen, i++)
+  for (size_t i = 0; i < buflen; i++)
   {
     if (i % 16 == 0)
       cout << hex << setw(4) << setfill('0') << i << ": ";
@@ -100,7 +109,7 @@ usage (const char *prog, const char *errmsg, const char *err2)
 }
 
 static void
-parse_frequency (pru_xmit_info_t &info, const char *freq_str, bool verbose)
+parse_frequency (pru_xmit_info_t &info, char *freq_str, bool verbose)
 {
   info.symbol_period_ns = 1000 * 1000 * 10; // default 100 Hz
   if (freq_str == NULL)
@@ -137,7 +146,7 @@ parse_frequency (pru_xmit_info_t &info, const char *freq_str, bool verbose)
   istringstream freq_in (freq_str);
   freq_in >> frequency_hz;
   if (freq_in.bad ())
-    usage ("bad frequency string");
+    usage ("xmit", "bad frequency string");
 
   // Convert frequency to GHz, so period_ns = 1/f;
   double frequency_ghz = static_cast<double>(frequency_hz) / fdiv;
@@ -148,7 +157,7 @@ parse_frequency (pru_xmit_info_t &info, const char *freq_str, bool verbose)
 
   // Make sure we don't go over the max value of a signed 32-bit integer
   if (period_ns >= static_cast<double>(static_cast<uint32_t>(-1)>>1))
-    usage (argv[0], "period too large");
+    usage ("xmit", "period too large");
 
   info.symbol_period_ns = static_cast<uint32_t> (period_ns);
 }
@@ -202,8 +211,7 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
 
   if (verbose)
   {
-    cout << "    frequency: " << frequency_ghz << "GHz" << endl
-         << "symbol period: " << info.symbol_period_ns << " ns" << endl
+    cout << "symbol period: " << info.symbol_period_ns << " ns" << endl
          << "   pwm period: " << info.period_ns << " ns" << endl
          << "     pwm duty: " << info.duty_ns << " ns" << endl;
   }
@@ -217,8 +225,8 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
   // Map data file
   struct stat st;
   memset (&st, 0, sizeof(st));
-  int st = stat (data_file, &st);
-  if (st < 0)
+  int ret = stat (data_file, &st);
+  if (ret < 0)
     usage (argv[0], "failed to stat data file", strerror (errno));
   data.len = st.st_size;
 
@@ -226,7 +234,7 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
   if (data.fd < 0)
     usage (argv[0], "failed to open data file", strerror (errno));
 
-  data.mem = mmap (NULL, data.len, PROT_READ, MAP_PRIVATE, data.fd, 0);
+  data.mem = (uint8_t*)mmap (NULL, data.len, PROT_READ, MAP_PRIVATE, data.fd,0);
   if (data.mem == MAP_FAILED)
   {
     close (data.fd);
@@ -238,6 +246,8 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
     cout << "mapped file " << data_file << ": size " << data.len << " bytes"
       << endl;
   }
+
+  return verbose;
 }
 
 static volatile bool run;
@@ -267,7 +277,7 @@ static void
 make_tx_header (circls_tx_hdr_t *outbuf, const mapped_file &data)
 {
   // TODO design and populate tx header
-  memset (output, 0, sizeof (circls_tx_hdr_t));
+  memset (outbuf, 0, sizeof (circls_tx_hdr_t));
 }
 
 /* We can only encode in 256-byte chunks.  */
@@ -279,12 +289,12 @@ encode_rs (uint8_t *outbuf, const mapped_file &data)
   //size_t nchunks = data.len / 256;
   size_t in_idx = 0;
   size_t out_idx = 0;
-  size_t bytes_left = data.len;
+  size_t left = data.len;
 
   /* Encode in 256-byte chunks, where NPAR of the bytes are for parity.  */
   while (left > 0)
   {
-    int in_chunk = 256 - NPAR;
+    size_t in_chunk = 256 - NPAR;
     if (left < in_chunk)
       break;
 
@@ -313,14 +323,14 @@ decode_rs_check (const uint8_t *encoded, size_t length)
 
   if (length % 256 != 0)
   {
-    err << "encoded message length (" << length << " bytes)"
+    cerr << "encoded message length (" << length << " bytes)"
       " not divisible by 256" << endl;
     return false;
   }
 
   // This length will be too long, since we won't copy out the parity bits,
   // but close enough
-  uint8_t outbuf = new uint8_t[length];
+  uint8_t *outbuf = new uint8_t[length];
   memcpy (&outbuf[0], encoded, length);
 
   size_t left = length;
@@ -332,11 +342,11 @@ decode_rs_check (const uint8_t *encoded, size_t length)
     int syndrome = check_syndrome ();
     if (syndrome != 0)
     {
-      err << "non-zero syndrome in codeword " << i << ": "
+      cerr << "non-zero syndrome in codeword " << i << ": "
         << hex << setw(8) << setfill('0') << syndrome << endl;
       int st = correct_errors_erasures (outbuf + out_index, 256, 0, NULL);
       if (st != 1)
-        err << "  -> error correction failed" << endl;
+        cerr << "  -> error correction failed" << endl;
     }
     i++;
     out_index += 256 - NPAR; // don't keep parity bits in the output
@@ -354,6 +364,9 @@ main (int argc, char *argv[])
   int evt;
   bool verbose;
   uint8_t *txbuf = NULL;
+  size_t txsize, parity_len, data_rounded;
+  int mask;
+
   tpruss_intc_initdata interrupts = PRUSS_INTC_INITDATA;
 
   if (getuid () != 0) {
@@ -398,21 +411,21 @@ main (int argc, char *argv[])
   /* Now we can figure out how long the tx packet is.  Make space for it.  */
 
   // Round data length up to next multiple of 256 - we will pad it out
-  int mask = (1 << 8) - 1; 
-  size_t data_rounded = (data.len + mask) & ~mask;
+  mask = (1 << 8) - 1; 
+  data_rounded = (data.len + mask) & ~mask;
 
   // Add space for parity bits following each codeword
-  size_t parity_len = (data.len / 256) * NPAR;
+  parity_len = (data.len / 256) * NPAR;
 
   // Final tx packet length
-  size_t txsize = sizeof(circls_tx_hdr_t) + data_rounded + parity_len;
+  txsize = sizeof(circls_tx_hdr_t) + data_rounded + parity_len;
   txbuf = new uint8_t[txsize];
 
   // Pass the size of the data to the PRU
   pwm_options.data_len = txsize;
 
-  /* Inject the tx header.  */ 
-  make_tx_header (txbuf, data);
+  /* Inject the tx header.  */
+  make_tx_header ((circls_tx_hdr_t *)txbuf, data);
   if (verbose)
     dump_buf (txbuf, sizeof(circls_tx_hdr_t), "tx header");
 
