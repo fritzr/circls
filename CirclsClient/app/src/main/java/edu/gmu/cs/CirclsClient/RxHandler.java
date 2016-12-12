@@ -10,13 +10,13 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final String TAG = "RxHandler";
     private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
+    private static final long THREAD_KEEPALIVE = 1000; // ms
 
     private CameraBridgeViewBase mCameraView;
     private BaseLoaderCallback mLoaderCallback;
@@ -27,8 +27,8 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
         mRxWorkers = new ThreadPoolExecutor(
                 NUMBER_OF_CORES * 2,
                 NUMBER_OF_CORES * 2,
-                60L,
-                TimeUnit.SECONDS,
+                THREAD_KEEPALIVE,
+                TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>()
         );
     }
@@ -80,6 +80,7 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
 
     @Override
     public void onCameraViewStopped() {
+        mRxWorkers.purge();
     }
 
     @Override
@@ -87,8 +88,7 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
         Mat mat = inputFrame.rgba();
 
         // queue up frame for processing
-        RxWorker frame = new RxWorker(mat);
-        mRxWorkers.execute(frame);
+        mRxWorkers.execute(new RxWorker(mat));
 
         return mat;
     }
