@@ -42,10 +42,13 @@ using namespace std;
 // Size of PRU data memory
 #define MAX_PRU_DATA 8192
 
+typedef uint16_t fcs_t; // just use crc16 as fcs
+
 // Our transmit header - we haven't determined this yet, but it should
 // contain things like the packet length, MCS, etc...
 struct circls_tx_hdr_t {
-  uint8_t _reserved[32];
+  uint16_t length; // full [unencoded] size of packet; header+data+FCS
+  uint8_t _reserved[24];
 };
 
 struct pru_xmit_info_t {
@@ -62,8 +65,7 @@ static pru_xmit_info_t *pru_data; // start of PRU memory - begins with tx info
 #define MAX_PACKET \
   (MAX_PRU_DATA \
   - sizeof(pru_xmit_info_t) \
-  - sizeof(circls_tx_hdr_t) \
-  - NPAR) /* NPAR - parity bits added from RS encoding */
+  - sizeof(circls_tx_hdr_t))
 
 struct mapped_file {
   size_t len;
@@ -75,13 +77,25 @@ static void
 dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
 {
   if (msg)
-    cout << msg << ":" << endl;
+    cout << msg << " (";
+  cout << "length " << dec << buflen;
+  if (msg)
+    cout << ")";
+  cout << endl;
+
+  if (!buf || !buflen)
+    return;
+
+  cout << "0000: ";
   for (size_t i = 0; i < buflen; i++)
   {
-    if (i % 16 == 0)
-      cout << hex << setw(4) << setfill('0') << i << ": ";
-    cout << hex << setw(2) << setfill('0') << *buf++;
+    if (i && ((i % 16) == 0))
+      cout << endl << hex << setw(4) << setfill('0') << i << ": ";
+    else if (i && ((i % 8) == 0))
+      cout << "  ";
+    cout << hex << setw(2) << setfill('0') << (int) *buf++ << " ";
   }
+  cout << endl;
 }
 
 static void
@@ -230,6 +244,9 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
     usage (argv[0], "failed to stat data file", strerror (errno));
   data.len = st.st_size;
 
+  if (data.len > MAX_PACKET)
+    usage (argv[0], "data too long");
+
   data.fd = open (data_file, O_RDONLY);
   if (data.fd < 0)
     usage (argv[0], "failed to open data file", strerror (errno));
@@ -277,82 +294,90 @@ static void
 make_tx_header (circls_tx_hdr_t *outbuf, const mapped_file &data)
 {
   // TODO design and populate tx header
-  memset (outbuf, 0, sizeof (circls_tx_hdr_t));
+  int i = 0;
+  const int step = 255 / sizeof(circls_tx_hdr_t);
+  uint8_t *const data_end = ((uint8_t *)outbuf) + sizeof(circls_tx_hdr_t);
+  uint8_t *buf = (uint8_t *)outbuf;
+  while (buf != data_end)
+  {
+    *buf++ = i;
+    i += step;
+  }
+  outbuf->length = data.len;
 }
 
-/* We can only encode in 256-byte chunks.  */
+/* We can only encode in 255-byte chunks (codewords), which includes NPAR
+ * parity bytes.  We stash the 251B data + 4B parity together in 255B blocks,
+ * so we need slightly more output than input data.  */
 static void
-encode_rs (uint8_t *outbuf, const mapped_file &data)
+encode_rs (uint8_t *__restrict outbuf, uint8_t *inbuf, size_t insize)
 {
   initialize_ecc ();
 
-  //size_t nchunks = data.len / 256;
   size_t in_idx = 0;
   size_t out_idx = 0;
-  size_t left = data.len;
+  size_t left = insize;
 
-  /* Encode in 256-byte chunks, where NPAR of the bytes are for parity.  */
+  /* Encode data in 255-byte chunks, where NPAR of the bytes are for parity.  */
   while (left > 0)
   {
-    size_t in_chunk = 256 - NPAR;
+    size_t in_chunk = 255 - NPAR;
     if (left < in_chunk)
-      break;
+      in_chunk = left;
 
-    encode_data (data.mem + in_idx, in_chunk, outbuf + out_idx);
+    encode_data (inbuf + in_idx, in_chunk, outbuf + out_idx);
 
     in_idx += in_chunk;
     out_idx += in_chunk + NPAR;
-  }
-
-  /* If we have a leftover chunk smaller than 256-NPAR, pad out with
-   * extra data, in a pattern that will result in an even number of each
-   * symbol.  */
-  if (left > 0)
-  {
-    uint8_t last_chunk[256];
-    memcpy (last_chunk, data.mem + in_idx, left);
-    memset (last_chunk + left, 0x2d, 256 - left); // == 00 10 11 01
-    encode_data (last_chunk, 256 - NPAR, outbuf + out_idx);
+    left -= in_chunk;
   }
 }
 
 static bool
-decode_rs_check (const uint8_t *encoded, size_t length)
+decode_rs_check (uint8_t *encoded, size_t length)
 {
   bool check_pass = true;
-
-  if (length % 256 != 0)
-  {
-    cerr << "encoded message length (" << length << " bytes)"
-      " not divisible by 256" << endl;
-    return false;
-  }
+  int st;
 
   // This length will be too long, since we won't copy out the parity bits,
-  // but close enough
+  // but close enough.
   uint8_t *outbuf = new uint8_t[length];
-  memcpy (&outbuf[0], encoded, length);
 
+  // Then decode the remainder of the message, in 255-byte chunks.
+  // The input in 255 - NPAR byte data chunks, with NPAR parity bits after each
+  // chunk, plus a possibly smaller chunk at the end, followed by a FCS.
   size_t left = length;
   size_t i = 0;
   size_t out_index = 0;
-  for (; left > 0; left -= 256)
+  size_t in_index = 0;
+  while (left > 0)
   {
-    decode_data (outbuf + out_index, 256);
+    size_t en_chunk = 255;
+    if (left < en_chunk)
+      en_chunk = left;
+
+    decode_data (encoded + in_index, en_chunk);
     int syndrome = check_syndrome ();
     if (syndrome != 0)
     {
       cerr << "non-zero syndrome in codeword " << i << ": "
         << hex << setw(8) << setfill('0') << syndrome << endl;
-      int st = correct_errors_erasures (outbuf + out_index, 256, 0, NULL);
+      st = correct_errors_erasures (encoded + in_index, en_chunk, 0, NULL);
       if (st != 1)
+      {
         cerr << "  -> error correction failed" << endl;
+        check_pass = false;
+      }
     }
+    memcpy (outbuf + out_index, encoded + in_index, en_chunk - NPAR);
+    out_index += en_chunk - NPAR; // don't keep parity bits in the output
+    in_index += en_chunk;
+    left -= en_chunk;
     i++;
-    out_index += 256 - NPAR; // don't keep parity bits in the output
   }
 
-  dump_buf (encoded, length, "decode check");
+  dump_buf (outbuf, out_index, "decoded packet");
+  delete[] outbuf;
 
   return check_pass;
 }
@@ -363,9 +388,11 @@ main (int argc, char *argv[])
   int ret = 2;
   int evt;
   bool verbose;
-  uint8_t *txbuf = NULL;
-  size_t txsize, parity_len, data_rounded;
-  int mask;
+  uint8_t *txbuf = NULL, *tx_enc = NULL;
+  size_t txsize, tx_encsize;
+  fcs_t crc16;
+  unsigned int crc_offset;
+  std::string blah;
 
   tpruss_intc_initdata interrupts = PRUSS_INTC_INITDATA;
 
@@ -380,6 +407,7 @@ main (int argc, char *argv[])
     cerr << "failed to find PRU binary (" << PRU_PROG << ")" << endl;
     exit(1);
   }
+  bin.close ();
 
   pru_xmit_info_t pwm_options;
   memset (&pwm_options, 0, sizeof(pwm_options));
@@ -408,45 +436,63 @@ main (int argc, char *argv[])
     goto done;
   }
 
-  /* Now we can figure out how long the tx packet is.  Make space for it.  */
-
-  // Round data length up to next multiple of 256 - we will pad it out
-  mask = (1 << 8) - 1; 
-  data_rounded = (data.len + mask) & ~mask;
-
-  // Add space for parity bits following each codeword
-  parity_len = (data.len / 256) * NPAR;
-
   // Final tx packet length
-  txsize = sizeof(circls_tx_hdr_t) + data_rounded + parity_len;
+  txsize = sizeof(circls_tx_hdr_t) + data.len + sizeof(fcs_t);
   txbuf = new uint8_t[txsize];
 
-  // Pass the size of the data to the PRU
-  pwm_options.data_len = txsize;
+  // Encoded packet length with parity bytes
+  tx_encsize = txsize / 255;
+  if ((txsize % 255) != 0)
+    tx_encsize++;
+  tx_encsize = txsize + (tx_encsize * NPAR);
+  tx_enc = new uint8_t[tx_encsize];
 
   /* Inject the tx header.  */
   make_tx_header ((circls_tx_hdr_t *)txbuf, data);
+
+  /* Copy the data.  */
+  memcpy (txbuf + sizeof(circls_tx_hdr_t), data.mem, data.len);
+
+  /* Compute FCS (CRC16) for header+data.  */
+  crc_offset = sizeof(circls_tx_hdr_t) + data.len;
+  crc16 = crc_ccitt (txbuf, crc_offset);
+  *(fcs_t *)(txbuf + crc_offset) = crc16;
+
   if (verbose)
-    dump_buf (txbuf, sizeof(circls_tx_hdr_t), "tx header");
+    dump_buf (txbuf, txsize, "raw packet");
 
   /*  Encode the entire packet using RS.  */
-  encode_rs (txbuf, data);
+  encode_rs (tx_enc, txbuf, txsize);
+
+  /* Pass encoded packet size to PRU for xmit.  */
+  pwm_options.data_len = tx_encsize;
+
   if (verbose)
   {
-    dump_buf (txbuf, txsize, "encoded packet");
+    dump_buf (tx_enc, tx_encsize, "encoded packet");
     // Sanity check, don't continue if we fail
-    if (!decode_rs_check (txbuf, txsize))
+    if (!decode_rs_check (tx_enc, tx_encsize))
     {
-      cerr << "sanity check failed!!!";
+      cerr << "sanity check failed!!!" << endl;
       goto done;
     }
+  }
+
+  if (tx_encsize > MAX_PACKET)
+  {
+    cerr << "encoded packet size too large to transmit" << endl;
+    goto done;
   }
 
   /* Copy tx info into PRU memory */
   memcpy (pru_data, &pwm_options, sizeof(pwm_options));
 
   /* Copy the encoded packet into PRU memory.  */
-  memcpy (pru_data + 1, txbuf, txsize);
+  memcpy (pru_data + 1, tx_enc, tx_encsize);
+
+  /* Wait for user input, to give a chance to hook into the debugger (?) */
+  cout << "press enter to continue..." << endl;
+  getline (cin, blah);
 
   // Load and execute binary on PRU
   if (prussdrv_exec_program (PRU_NUM, PRU_PROG) < 0)
@@ -474,6 +520,8 @@ done:
 
   if (txbuf)
     delete[] txbuf;
+  if (tx_enc)
+    delete[] tx_enc;
 
   exit(ret);
 }
