@@ -7,7 +7,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 
 import com.obd.infrared.log.LogToEditText;
@@ -39,7 +38,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     new String[]{Manifest.permission.TRANSMIT_IR},
                     IR_PERMS);
         } else {
-            tx.setup(this, log);
+            tx.setup(this);
         }
     }
 
@@ -61,7 +60,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case IR_PERMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     log.log("IR granted");
-                    tx.setup(this, log);
+                    tx.setup(this);
                 } else {
                     log.log("IR denied");
                     tx.stop();
@@ -75,15 +74,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        Button transmitButton = (Button) findViewById(R.id.transmit_button);
-        transmitButton.setOnClickListener(this);
-
-        // Log messages to EditText
-        EditText console = (EditText) findViewById(R.id.console);
-        log = new LogToEditText(console, TAG);
-
         getPermissions();
+
+        // Log output to display
+        EditText console = (EditText) findViewById(R.id.console);
+        console.setOnClickListener(this);
+        log = new LogToEditText(console, TAG);
     }
 
     @Override
@@ -96,8 +92,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         log.clear();
-        int data[] = {494, 114, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 114, 38, 1};
-        tx.send(data);
+        tx.sendNAK(1);
     }
 
     @Override
