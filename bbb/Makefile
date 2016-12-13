@@ -23,6 +23,7 @@ CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x $(INCLUDES)
 LDFLAGS+=-L$(BIN) -Wl,-rpath,$(shell pwd)/bin
 LDLIBS=
+ASMFLAGS=-V2
 
 # external library targets
 LIBDIRS=$(shell ls -dF $(LIB)/* | grep '/$$')
@@ -67,7 +68,7 @@ $(PROG_TARGETS): $(BIN)/%: $(PROG_DEPS) $(BUILD)/%.o
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 $(PRU_TARGETS): $(BIN)/%.bin: $(SRC)/%.p
-	pasm -b $< $(BIN)/$*
+	pasm $(ASMFLAGS) -b $< $(BIN)/$*
 
 # Build intermediate objects
 

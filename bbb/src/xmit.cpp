@@ -48,8 +48,8 @@ typedef uint16_t fcs_t; // just use crc16 as fcs
 // contain things like the packet length, MCS, etc...
 struct circls_tx_hdr_t {
   uint16_t length; // full [unencoded] size of packet; header+data+FCS
-  uint8_t _reserved[24];
-};
+  uint8_t  seq;    // sequence number
+} __attribute__((packed));
 
 struct pru_xmit_info_t {
   uint32_t symbol_period_ns; // duration of each symbol
@@ -186,7 +186,7 @@ getOptions (int argc, char *argv[], pru_xmit_info_t &info, mapped_file &data)
   char *freq_str = NULL;
 
   int opt;
-  while ((opt = getopt (argc, argv, "vd:")) != -1)
+  while ((opt = getopt (argc, argv, "vd:f:")) != -1)
   {
     switch (opt)
     {
@@ -294,16 +294,8 @@ static void
 make_tx_header (circls_tx_hdr_t *outbuf, const mapped_file &data)
 {
   // TODO design and populate tx header
-  int i = 0;
-  const int step = 255 / sizeof(circls_tx_hdr_t);
-  uint8_t *const data_end = ((uint8_t *)outbuf) + sizeof(circls_tx_hdr_t);
-  uint8_t *buf = (uint8_t *)outbuf;
-  while (buf != data_end)
-  {
-    *buf++ = i;
-    i += step;
-  }
   outbuf->length = data.len;
+  outbuf->seq = 0;
 }
 
 /* We can only encode in 255-byte chunks (codewords), which includes NPAR

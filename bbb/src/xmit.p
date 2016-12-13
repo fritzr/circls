@@ -12,7 +12,7 @@
   .u32 speriod  // symbol period: time between changing symbols
   .u32 iperiod  // dimming [intra-symbol] period: time used for PWM dimming
   .u32 duty     // duty period: on time, less than or equal to iperiod
-  .u16 data_len // number of dwords (4 bytes) in the data packet to xmit
+  .u16 left     // number of bytes left of the data packet
   .u8  bhalt    // halt bit - set by the host to request termination
   .u8  pad      // unused
 .ends
@@ -22,21 +22,26 @@
 .struct pru_data_info
   .u32 buf     // data word buffer, copied from register file
   .u32 off     // PRU memory offset of next data block transfer
-  .u16 left    // bytes of data left to xmit
   .u8  shift   // data shift amount, used to read 2 bits at a time to choose LED
   .u8  block   // size of next block transfer, usually DATA_BLK_BYTES
-  .u8  reg     // register pointer to next data word in the register file
-  .u8  reg_end // register pointer after the end of data in the register file
   .u8  bits    // which bits to set in the LED
   .u8  cycles  // number of cycles we've wasted with initializing code
 .ends
-.assign pru_data_info, r8, r11, data // map data info structure starting at r8
+.assign pru_data_info, r8, r10, data // map data info structure starting at r8
+
+// These are used as pointers into the register file to read the tx data,
+// which is burst copied from main PRU memory now and then.
+.struct reg_ptrs
+  .u8  current
+  .u8  end
+.ends
+.assign reg_ptrs, r1.b2, r1.b3, reg
 
 // data is copied into the register file starting at this address, which
 // must be after all the mapped structures
-#define REGFILE_DATA     r12
-#define DATA_BLK_BYTES   64  // == 16 registers; number of bytes per block read
-#define REGFILE_DATA_END r28 // REGFILE_DATA plus DATA_BLK registers
+#define DATA_BLK_BYTES   64 // == 16 registers; number of bytes per block read
+#define REGFILE_DATA     11*4 // r11 - start of data copied into regfile
+#define REGFILE_DATA_END 27*4 // r27 - REGFILE_DATA plus DATA_BLK/4 registers
 
 .origin 0               // offset of start of program in PRU memory
 .entrypoint START       // program entry point used by the debugger
@@ -75,73 +80,56 @@ START:
         // initialize data info
         LDI     data.off, DATA_START
         LDI     data.block, DATA_BLK_BYTES
-        MOV     data.left, info.data_len
-        MVID    data.reg_end, REGFILE_DATA_END
+
+        // Unconditional instructions from SET_OUTBITS to PWM_DELAY_LOW
+        LDI     data.cycles, 11 * NS_PER_INSTR
+
+        // NB. we omit the following block because we know we will be given
+        // SPERIOD divisible by IPERIOD, due to checking in the host program.
 
         // We need to check whether the IPERIOD is divisible by SPERIOD.
         // If not, the duty cycle will be wrong and the xmit frequency will
         // drift.  However skip this step if the duty-cycle or intra-period are
         // zero.
-        QBEQ    CHECK_DIVIS, info.duty, 0
-        QBEQ    CHECK_DIVIS, info.iperiod, 0
+//        QBEQ    CHECK_DIVIS, info.duty, 0
+//        QBEQ    CHECK_DIVIS, info.iperiod, 0
 
-        // check that speriod is divisible by iperiod for ease of xmit
-        // this block could be omitted if we are certain the period given
-        // is divisible
-        MAX     r0, info.iperiod, info.speriod
-        MIN     r1, info.iperiod, info.speriod
+//        MAX     r0, info.iperiod, info.speriod
+//        MIN     r1, info.iperiod, info.speriod
 
-CHECK_DIVIS: // while (x > 0) x -= y; if (x != 0) FAIL
-        SUB     r0, r0, r1
-        QBBS    END, r0, 31 // If r0 < 0, we are not divisible so we quit!
-        QBLT    CHECK_DIVIS, r0, 0 // If r0 > 0, keep subtracting
-
-MAINLOOP:
-        // Quit if the halt register is asserted
-        // abuse the fact that we've loaded 0 into REG_LEDS
-        LBBO    info.bhalt, REG_LEDS, OFFSET(info.bhalt), SIZE(info.bhalt)
-        QBNE    END, info.bhalt, 0
-
-        // Keep track of the number of instruction cycles we've wasted up
-        // to the point of the actual PWM loop. This is so we can perform
-        // as accurate a symbol frequency as possible. We waste:
-        //    3 instructions here,
-        //   10 more from SET_OUTBITS to PWM_DELAY_LOW
-        // SET_OUTBITS and 2 more at SYMBOL_NEXT.
-        LDI     data.cycles, 14 * NS_PER_INSTR
+//CHECK_DIVIS: // while (x > 0) x -= y; if (x != 0) FAIL
+//        SUB     r0, r0, r1
+//        QBBS    END, r0, 31 // If r0 < 0, we are not divisible so we quit!
+//        QBLT    CHECK_DIVIS, r0, 0 // If r0 > 0, keep subtracting
 
 NEXT_DATA:
-        // Get the next block of data from PRU memory into the regsiter file
-        QBEQ    END, data.left, 0 // done if we have 0 bytes left
-
-        // Unless we've more registers to read, fall-through to read the
-        // next data block from PRU main memory into the register file
-        QBLT    NEXT_REG, data.reg_end, data.reg // data.reg < data.reg_end
-
         // read a block at a time; or whatever is left, if less
-        MIN     r0, data.block, data.left // r0 is used for the block size
+        MIN     r0, data.block, info.left // r0 is used for the block size
         LBBO    REGFILE_DATA, data.off, 0, b0 // r0.b0 from above
         ADD     data.off, data.off, r0 // increment data offset
-        SUB     data.left, data.left, r0.w0 // decrement bytes left
-        // start reading registers from the start of data
-        MVID    data.reg, REGFILE_DATA
 
-        ADD     data.cycles, data.cycles, 8 * NS_PER_INSTR
+        // start reading registers from the start of data, go to end of what
+        // we just read
+        LDI     reg.current, REGFILE_DATA
+        ADD     reg.end, r0, REGFILE_DATA // set end reg
+
+        ADD     data.cycles, data.cycles, 6 * NS_PER_INSTR
 
 NEXT_REG:
-        // Unless we've read all the bits in this register, fall-through to
-        // read the next register and reset the shift count
-        QBNE    SET_OUTBITS, data.shift, 0 // not done shifting
+        // r0 = min { 4, left } ; number of bytes remaining, usually 4
+        LDI     r0, 4
+        MIN     r0, r0, info.left
+        // shift = 4 * r0 - 1   ; number of symbols left to send
+        LSL     data.shift, r0, 2
+        SUB     data.shift, data.shift, 1
+        // left -= r0           ; decrement number of bytes used
+        SUB     info.left, info.left, r0
 
         // Load next data word from the register file
-        MVID    data.buf, data.reg
-        ADD     data.reg, data.reg, 4 // read 4 bytes at a time
+        MVID    data.buf, *reg.current
+        ADD     reg.current, reg.current, 4 // read 4 bytes at a time
 
-        // we assume 4-CSK, so we read and shift 2 bits at a time
-        // until we hit a shift of 32, so we shift 16 times
-        LDI     data.shift, 16
-
-        ADD     data.cycles, data.cycles, 4 * NS_PER_INSTR
+        ADD     data.cycles, data.cycles, 8 * NS_PER_INSTR
 
 SET_OUTBITS:
         // Set the output bits based on the next data word according to
@@ -153,9 +141,10 @@ SET_OUTBITS:
         //   10  BLUE    (LEDB_BIT==2)  set 100
         //   11  WHITE                  set 111
         LDI     data.bits, 0 // clear LED bits
-        AND     r0, data.buf, DATA_WHITE // read bottom 2 bits
-        SET     data.bits, r0 // set LED bits from data (see table above)
-        QBNE    SKIP_WHITE, r0, DATA_WHITE // r0 != DATA_WHITE, we're done
+        AND     r0.b0, data.buf, DATA_WHITE // read bottom 2 bits
+        SET     data.bits, r0.b0 // set LED bits from data (see table above)
+
+        QBNE    SKIP_WHITE, r0.b0, DATA_WHITE // r0 != DATA_WHITE, we're done
 
         // if we actually chose white, we did erroneously set the unused
         // "bit 3" above; however, the unconditional SET saves a branch,
@@ -168,40 +157,59 @@ SKIP_WHITE:
         LSR     data.buf, data.buf, 2
         SUB     data.shift, data.shift, 1
 
-        MOV     r2, info.speriod // set up counter for symbol period
+        MOV     r3, info.speriod // set up counter for symbol period
 
 SYMBOL_PWM:
         // hold symbol low for (iperiod - duty)
-        MOV     r1, info.iperiod // start inner counter
+        MOV     r2, info.iperiod // start inner counter
         // We waste a few instructions per PWM cycle with all the
         // initialization stuff above, which we've kept track of to this point.
         // Make sure we account for this extra time to keep our frequency as
         // accurate as possible.
-        SUB     r1, r1, data.cycles
+        SUB     r2, r2, data.cycles
+        // Once we've entered the loop, we only waste 8 instructions per iperiod
+        LDI     data.cycles, 8*NS_PER_INSTR
         LDI     REG_LEDS, 0 // disable LED output pins
 
 PWM_DELAY_LOW:
-        SUB     r1, r1, 2*NS_PER_INSTR // 2 instructions per loop
-        QBLT    PWM_DELAY_LOW, r1, info.duty // loop while r1 > info.duty
+        SUB     r2, r2, 2*NS_PER_INSTR // 2 instructions per loop
+        QBLT    PWM_DELAY_LOW, r2, info.duty // loop while r2 > info.duty
 
-        QBGT    PWM_CYCLE_END, r1, 10 // don't set output high if r1 < 10
+        QBGT    PWM_CYCLE_END, r2, 10 // don't set output high if r2 < 10
         MOV     REG_LEDS, data.bits // set symbol high for remainder (duty)
 PWM_DELAY_HIGH:
-        SUB     r1, r1, 2*NS_PER_INSTR // 2 instructions per loop
-        QBNE    PWM_DELAY_HIGH, r1, 0 // loop while 0 < r1 < info.duty
+        SUB     r2, r2, 2*NS_PER_INSTR // 2 instructions per loop
+        QBLT    PWM_DELAY_HIGH, r2, 10 // loop while 10 < r2 < info.duty
 
 PWM_CYCLE_END:
         // Finished one PWM cycle. Do it again until time for the next symbol
-        SUB     r2, r2, info.iperiod
-        QBNE    SYMBOL_PWM, r2, 0 // repeat PWM cycle while r2 > 0
+        SUB     r3, r3, info.iperiod
+        QBLT    SYMBOL_PWM, r3, 10 // repeat PWM cycle while r3 > 10
 
 SYMBOL_NEXT:
         // Transmit the next symbol, but start the OFF PWM cycle first.
         LDI     REG_LEDS, 0 // disable LED output pins
-        QBA     MAINLOOP
+
+        // Unconditional instructions from SET_OUTBITS to PWM_DELAY_LOW
+        LDI     data.cycles, 11 * NS_PER_INSTR
+
+        // set bits from shift again until we run out of bits in this reg
+        ADD     data.cycles, data.cycles, 2 * NS_PER_INSTR // branch
+        QBNE    SET_OUTBITS, data.shift, 0
+
+        // Take this time to check if the halt register is asserted
+        // abuse the fact that we've loaded 0 into REG_LEDS
+        LBBO    info.bhalt, REG_LEDS, OFFSET(info.bhalt), SIZE(info.bhalt)
+        QBNE    END, info.bhalt, 0
+
+        // go to next reg while reg.current < reg.end
+        ADD     data.cycles, data.cycles, 4 * NS_PER_INSTR // branch + halt
+        QBLT    NEXT_REG, reg.end, reg.current
+
+        ADD     data.cycles, data.cycles, 2 * NS_PER_INSTR // branch
+        // keep reading data while bytes left != 0
+        QBNE    NEXT_DATA, info.left, 0
 
 END:                               // end of program, send back interrupt
-        // clear output pins first
-        LDI     REG_LEDS, 0
         MOV     R31.b0, PRU0_R31_VEC_VALID | EVENTOUT0
         HALT
