@@ -9,6 +9,7 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -20,11 +21,28 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
 
     private CameraBridgeViewBase mCameraView;
     private BaseLoaderCallback mLoaderCallback;
-    private final ThreadPoolExecutor mRxWorkers;
+    private final ThreadPoolExecutor mWorkers;
+
+    static { System.loadLibrary("native-lib"); }
+    private native char[] ImageProcessor(long inputFrame);
+
+    class Worker implements Runnable {
+        private Mat mat;
+        Worker(Mat mat) {
+            this.mat = mat;
+        }
+
+        @Override
+        public void run() {
+            char data[] = ImageProcessor(mat.getNativeObjAddr());
+            String row = Arrays.toString(data);
+            Log.d(TAG, row);
+        }
+    }
 
     public RxHandler() {
         // use multiple threads to handle Rx images
-        mRxWorkers = new ThreadPoolExecutor(
+        mWorkers = new ThreadPoolExecutor(
                 NUMBER_OF_CORES * 2,
                 NUMBER_OF_CORES * 2,
                 THREAD_KEEPALIVE,
@@ -65,13 +83,11 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
         }
     }
 
-
     public void stop() {
         if (mCameraView != null) {
             mCameraView.disableView();
         }
     }
-
 
     @Override
     public void onCameraViewStarted(int width, int height) {
@@ -80,17 +96,15 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
 
     @Override
     public void onCameraViewStopped() {
-        mRxWorkers.purge();
+        mWorkers.purge();
     }
 
+
+    // queue up each frame for processing
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat mat = inputFrame.rgba();
-
-        // queue up frame for processing
-        mRxWorkers.execute(new RxWorker(mat));
-
+        mWorkers.execute(new Worker(mat));
         return mat;
     }
-
 }
