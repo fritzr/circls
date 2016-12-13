@@ -110,6 +110,19 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
         // copy results to return
         env.SetCharArrayRegion(ret, 0, pixels, buf);
     }
+    return ret;
+}
 
+extern "C"
+JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject, jint id) {
+    int len = sizeof(id) * 2;
+
+    jintArray ret = env.NewIntArray(len);
+    if (ret != NULL) {
+        jint buf[len];
+        buf[0] = id;
+        buf[1] = 0;
+        env.SetIntArrayRegion(ret, 0, len, buf);
+    }
     return ret;
 }
