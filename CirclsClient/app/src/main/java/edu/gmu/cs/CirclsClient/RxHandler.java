@@ -10,6 +10,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
 import java.util.Arrays;
+import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -19,24 +20,28 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     private static final int NUMBER_OF_CORES = Runtime.getRuntime().availableProcessors();
     private static final long THREAD_KEEPALIVE = 1000; // ms
 
+    private final ThreadPoolExecutor mWorkers;
     private CameraBridgeViewBase mCameraView;
     private BaseLoaderCallback mLoaderCallback;
-    private final ThreadPoolExecutor mWorkers;
+    private MessageHandler mDisplay;
 
     static { System.loadLibrary("native-lib"); }
     private native char[] ImageProcessor(long inputFrame);
 
+    int i = 0;//tmp
+    Random rnd = new Random(); // tmp
     class Worker implements Runnable {
         private Mat mat;
-        Worker(Mat mat) {
-            this.mat = mat;
+        private int id; //tmp
+        Worker(Mat mat, int id) {
+            this.mat = mat; this.id = id;
         }
 
         @Override
         public void run() {
             char data[] = ImageProcessor(mat.getNativeObjAddr());
-            String row = Arrays.toString(data);
-            Log.d(TAG, row);
+            if (rnd.nextInt(10) < 8) //tmp
+            mDisplay.update(id, String.valueOf(data));
         }
     }
 
@@ -51,7 +56,7 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
         );
     }
 
-    public void setup(View view) {
+    public void setup(View view, MessageHandler display) {
         // setup display
         mCameraView = (CameraBridgeViewBase) view;
         mCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
@@ -75,6 +80,8 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
                 }
             }
         };
+
+        mDisplay = display;
     }
 
     public void start() {
@@ -99,12 +106,12 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
         mWorkers.purge();
     }
 
-
     // queue up each frame for processing
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat mat = inputFrame.rgba();
-        mWorkers.execute(new Worker(mat));
+        mWorkers.execute(new Worker(mat, i));
+        i = (i + 1) % 256; //tmp
         return mat;
     }
 }
