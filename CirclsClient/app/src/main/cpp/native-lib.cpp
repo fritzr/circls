@@ -1,7 +1,7 @@
 #include <jni.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "ezpwd/rs"
+#include "rscode-1.3/ecc.h"
 
 using namespace std;
 using namespace cv;
@@ -29,8 +29,8 @@ void flattenCols(Mat &mat, int32_t flat[][3]) {
 
         // average values for the row
         flat[i][0] /= cols;
-        flat[i][1] /= cols;
-        flat[i][2] /= cols;
+        flat[i][1] = flat[i][1] / cols - 128;
+        flat[i][2] = flat[i][2] / cols - 128;
     }
 }
 
@@ -58,47 +58,54 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
     // average the values for each flat column
     for (int i = 0; i < cols; i++) {
         flat[i][0] /= rows;
-        flat[i][1] /= rows;
-        flat[i][2] /= rows;
+        flat[i][1] = flat[i][1] / rows - 128;
+        flat[i][2] = flat[i][2] / rows - 128;
     }
 }
 
 
+void detectSymbols(int32_t frame[][3], jchar symbols[], int pixels) {
+
+    // convert ab numbers to RGBYW representation
+    for (int i = 0; i < pixels; i++) {
+        int L = frame[i][0];
+        int a = frame[i][1] - 128;
+        int b = frame[i][2] - 128;
+        jchar c;
+
+        // +a = red; -a = green; -b = blue; +b = yellow;
+        if (a == b) {
+            c = (L == 0) ? '0' : '1';
+        }
+        else if (abs(a) > abs(b)) {
+            c = (a < 0) ? 'G' : 'R';
+        }
+        else {
+            c = (b < 0) ? 'B' : 'Y';
+        }
+
+        symbols[i] = c;
+    }
+
+}
+
 extern "C"
-JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxWorker_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
-    // convert RGB to Lab
+JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
+    int pixels = matRGB.rows;
+    int32_t frame[pixels][3];
+
+    // flatten frame in Lab color-space
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
-
-    // flatten frame
-    int pixels = matLab.rows;
-    int32_t frame[pixels][3];
     flattenCols(matLab, frame);
+    matLab.release();
 
     jcharArray ret = env.NewCharArray(pixels);
     if (ret != NULL) {
         jchar buf[pixels];
 
-        // convert ab numbers to RGBYW representation
-        for (int i = 0; i < pixels; i++) {
-            int L = frame[i][0];
-            int a = frame[i][1] - 128;
-            int b = frame[i][2] - 128;
-            jchar c;
-
-            // +a = red; -a = green; -b = blue; +b = yellow;
-            if (a == b) {
-                c = (L == 0) ? '0' : '1';
-            }
-            else if (abs(a) > abs(b)) {
-                c = (a < 0) ? 'G' : 'R';
-            }
-            else {
-                c = (b < 0) ? 'B' : 'Y';
-            }
-
-            buf[i] = c;
-        }
+        // convert flat frame to symbols
+        detectSymbols(frame, buf, pixels);
 
         // copy results to return
         env.SetCharArrayRegion(ret, 0, pixels, buf);
