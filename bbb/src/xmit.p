@@ -13,11 +13,16 @@
   .u32 iperiod  // dimming [intra-symbol] period: time used for PWM dimming
   .u32 duty     // duty period: on time, less than or equal to iperiod
   .u16 left     // number of bytes left of the data packet
-  .u8  bhalt    // halt bit - set by the host to request termination
+  .u8  flags    // host flags - see PFLAGS_* bits
   .u8  pad      // unused
 .ends
 .assign pru_xmit_info, r4, r7, info // map tx info structure starting at r4
 #define DATA_START     16 // data starts immediately after info struct
+// PFLAGS_* - private flags for PRU0
+
+// SFLAGS_* - shared flags for PRU0/1 at the start of shared memory
+#define SFLAGS_HALT  0 // bit 0, set to terminate program
+#define SFLAGS_START 1 // bit 1, set to allow program to start
 
 .struct pru_data_info
   .u32 buf     // data word buffer, copied from register file
@@ -40,8 +45,8 @@
 // data is copied into the register file starting at this address, which
 // must be after all the mapped structures
 #define DATA_BLK_BYTES   64 // == 16 registers; number of bytes per block read
-#define REGFILE_DATA     11*4 // r11 - start of data copied into regfile
-#define REGFILE_DATA_END 27*4 // r27 - REGFILE_DATA plus DATA_BLK/4 registers
+#define REGFILE_DATA     12*4 // r12 - start of data copied into regfile
+#define REGFILE_DATA_END 28*4 // r28 - REGFILE_DATA plus DATA_BLK/4 registers
 
 .origin 0               // offset of start of program in PRU memory
 .entrypoint START       // program entry point used by the debugger
@@ -101,6 +106,13 @@ START:
 //        SUB     r0, r0, r1
 //        QBBS    END, r0, 31 // If r0 < 0, we are not divisible so we quit!
 //        QBLT    CHECK_DIVIS, r0, 0 // If r0 > 0, keep subtracting
+
+        // Wait for START flag to synchronize start times, if HALT is set first
+        // then we can quit immediately
+SYNC_START:
+        LBCO    r11.b0, c28, 0, 1
+        QBBS    END, r11.b0, SFLAGS_HALT
+        QBBC    SYNC_START, r11.b0, SFLAGS_START
 
 NEXT_DATA:
         // read a block at a time; or whatever is left, if less
@@ -198,9 +210,8 @@ SYMBOL_NEXT:
         QBNE    SET_OUTBITS, data.shift, 0
 
         // Take this time to check if the halt register is asserted
-        // abuse the fact that we've loaded 0 into REG_LEDS
-        LBBO    info.bhalt, REG_LEDS, OFFSET(info.bhalt), SIZE(info.bhalt)
-        QBNE    END, info.bhalt, 0
+        LBCO    r11.b0, c28, 0, 1
+        QBBS    END, r11.b0, SFLAGS_HALT
 
         // go to next reg while reg.current < reg.end
         ADD     data.cycles, data.cycles, 4 * NS_PER_INSTR // branch + halt

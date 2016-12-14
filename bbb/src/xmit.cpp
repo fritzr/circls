@@ -33,45 +33,13 @@ extern "C"
 
 using namespace std;
 
-#define PRU_PROG "./bin/xmit.bin"
+#define PRU0_PROG "./bin/xmit.bin"
+#define PRU1_PROG "./bin/ir.bin"
 #define PRU_NUM 0
-#define LEDR_PIN 0
-#define LEDG_PIN 1
-#define LEDB_PIN 2
 
-// Size of PRU data memory
-#define MAX_PRU_DATA 8192
-
-typedef uint16_t fcs_t; // just use crc16 as fcs
-
-// Our transmit header - we haven't determined this yet, but it should
-// contain things like the packet length, MCS, etc...
-struct circls_tx_hdr_t {
-  uint16_t length; // full [unencoded] size of packet; header+data+FCS
-  uint8_t  seq;    // sequence number
-} __attribute__((packed));
-
-struct pru_xmit_info_t {
-  uint32_t symbol_period_ns; // duration of each symbol
-  uint32_t period_ns;        // PWM period within a symbol, for dimming
-  uint32_t duty_ns;          //     duty cycle within period_ns
-  uint16_t data_len;         // length of data packet in bytes
-  uint8_t  halt;             // set to halt the PRU loop
-  uint8_t  _pad;             // pad structure to 4-byte boundary
-} __attribute__((packed));
-static pru_xmit_info_t *pru_data; // start of PRU memory - begins with tx info
-
-// Maximum packet size we can copy down to the PRU at once
-#define MAX_PACKET \
-  (MAX_PRU_DATA \
-  - sizeof(pru_xmit_info_t) \
-  - sizeof(circls_tx_hdr_t))
-
-struct mapped_file {
-  size_t len;
-  uint8_t *mem;
-  int fd;
-};
+static pru_xmit_info_t   *pru0_data;  // start of PRU0 memory
+static pru_ir_info_t     *pru1_data;  // start of PRU1 memory
+static pru_shared_info_t *pru_shared; // start of shared PRU memory
 
 static void
 dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
@@ -275,15 +243,16 @@ handle_interrupt(int signum)
   if (run)
   {
     run = false;
-    pru_data->halt = 1;
+    pru_shared->flags.halt = 1;
     cout << "sent halt" << endl;
   }
   // After two interrupts, force quit
   else
   {
     cerr << "force quit" << endl;
-    /* Disable PRU and close memory mappings.  */
-    prussdrv_pru_disable (PRU_NUM);
+    /* Disable PRUs and close memory mappings.  */
+    prussdrv_pru_disable (0);
+    prussdrv_pru_disable (1);
     prussdrv_exit ();
 
     exit(2);
@@ -416,13 +385,15 @@ main (int argc, char *argv[])
 
   // events
   prussdrv_open (PRU_EVTOUT_0);
+  prussdrv_open (PRU_EVTOUT_1);
 
   // map interrupts
   prussdrv_pruintc_init(&interrupts);
 
-  // Copy data to PRU memory
-  if (prussdrv_map_prumem (PRUSS0_PRU0_DATARAM,
-      reinterpret_cast<void **>(&pru_data)) < 0)
+  // Map PRU memory
+  if (prussdrv_map_prumem (PRUSS0_PRU0_DATARAM, (void **)&pru0_data) < 0
+      || prussdrv_map_prumem (PRUSS0_PRU1_DATARAM, (void **)&pru1_data) < 0
+      || prussdrv_map_prumem (PRUSS0_SHARED_DATARAM, (void **)&pru_shared) < 0)
   {
     cerr << "failed to map PRU memory!" << endl;
     goto done;
@@ -477,27 +448,38 @@ main (int argc, char *argv[])
   }
 
   /* Copy tx info into PRU memory */
-  memcpy (pru_data, &pwm_options, sizeof(pwm_options));
+  memcpy (pru0_data, &pwm_options, sizeof(pwm_options));
 
   /* Copy the encoded packet into PRU memory.  */
-  memcpy (pru_data + 1, tx_enc, tx_encsize);
+  memcpy (pru0_data + 1, tx_enc, tx_encsize);
 
   /* Wait for user input, to give a chance to hook into the debugger (?) */
   cout << "press enter to continue..." << endl;
   getline (cin, blah);
 
-  // Load and execute binary on PRU
-  if (prussdrv_exec_program (PRU_NUM, PRU_PROG) < 0)
+  // Load and execute binary on PRU0
+  if (prussdrv_exec_program (0, PRU0_PROG) < 0)
   {
-    cerr << "failed to exec PRU program!" << endl;
+    cerr << "failed to exec PRU0 program!" << endl;
     goto done;
   }
 
-  // Wait for interrupt
+  // Load and execute binary on PRU1
+  if (prussdrv_exec_program (1, PRU1_PROG) < 0)
+  {
+    cerr << "failed to exec PRU1 program!" << endl;
+    goto done;
+  }
+
+  // Wait for interrupt from user
   run = true;
   signal (SIGINT,  handle_interrupt);
   signal (SIGQUIT, handle_interrupt);
 
+  // Let the PRUs actually start
+  pru_shared->flags.start = 1;
+
+  // Wait for finish interrupt from PRU 0
   evt = prussdrv_pru_wait_event (PRU_EVTOUT_0);
   cout << "PRU done, event " << evt << endl;
 
