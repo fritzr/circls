@@ -89,16 +89,12 @@ void detectSymbols(int32_t frame[][3], jchar symbols[], int pixels) {
 
 }
 
-/*
-static bool
-decode_rs_check (uint8_t *encoded, size_t length)
+
+static int
+decode_rs (uint8_t *encoded, size_t length)
 {
     bool check_pass = true;
     int st;
-
-    // This length will be too long, since we won't copy out the parity bits,
-    // but close enough.
-    uint8_t *outbuf = new uint8_t[length];
 
     // Then decode the remainder of the message, in 255-byte chunks.
     // The input in 255 - NPAR byte data chunks, with NPAR parity bits after each
@@ -117,28 +113,22 @@ decode_rs_check (uint8_t *encoded, size_t length)
         int syndrome = check_syndrome ();
         if (syndrome != 0)
         {
-            cerr << "non-zero syndrome in codeword " << i << ": "
-            << hex << setw(8) << setfill('0') << syndrome << endl;
             st = correct_errors_erasures (encoded + in_index, en_chunk, 0, NULL);
             if (st != 1)
             {
-                cerr << "  -> error correction failed" << endl;
                 check_pass = false;
             }
         }
-        memcpy (outbuf + out_index, encoded + in_index, en_chunk - NPAR);
+        memcpy (encoded + out_index, encoded + in_index, en_chunk - NPAR);
         out_index += en_chunk - NPAR; // don't keep parity bits in the output
         in_index += en_chunk;
         left -= en_chunk;
         i++;
     }
 
-    dump_buf (outbuf, out_index, "decoded packet");
-    delete[] outbuf;
-
-    return check_pass;
+    return check_pass ? out_index : -1;
 }
-*/
+
 
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
@@ -150,6 +140,11 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
     cvtColor(matRGB, matLab, CV_RGB2Lab);
     flattenCols(matLab, frame);
     matLab.release();
+
+    // detect symbols
+
+    // RS decoding
+//    decod_rs();
 
     jcharArray ret = env.NewCharArray(pixels);
     if (ret != NULL) {
@@ -164,33 +159,28 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
     return ret;
 }
 
+#define PULSE_WIDTH 8
+#define IR_PACKET_SIZE 20
+
 extern "C"
 JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject, jint id) {
     // magic + fcs
-    jint buf[12] = {1,1,1,5};
+    jint buf[IR_PACKET_SIZE] = {1 * PULSE_WIDTH,
+                                1 * PULSE_WIDTH,
+                                1 * PULSE_WIDTH,
+                                5 * PULSE_WIDTH};
 
-    // starting position of next on pulse
-    int len = 4, b = 7;
-    int on, off;
-    do {
-        on = 0;
-        while ( (id >> b & 1) && (b >= 0) ) {
-            on++;
-            b--;
-        }
-        buf[len++] = on;
+    // each bit is represented by a total of 3 pulses
+    int i = 4;
+    for (int b = 7; b >= 0; b--) {
+        bool set = (id >> b) & 1;
+        buf[i++] = (set ? 2 : 1) * PULSE_WIDTH; // on
+        buf[i++] = (set ? 1 : 2) * PULSE_WIDTH; // off
+    }
 
-        off = 0;
-        while ( !(id >> b & 1) && (b >= 0) ) {
-            off++;
-            b--;
-        }
-        buf[len++] = off;
-    } while (b >= 0);
-
-    jintArray ret = env.NewIntArray(len);
+    jintArray ret = env.NewIntArray(IR_PACKET_SIZE);
     if (ret != NULL) {
-        env.SetIntArrayRegion(ret, 0, len, buf);
+        env.SetIntArrayRegion(ret, 0, IR_PACKET_SIZE, buf);
     }
     return ret;
 }
