@@ -16,7 +16,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int CAMERA_PERMS = 0xbeef;
     private static final int IR_PERMS = 0xbadd;
 
-    private LogToEditText log;
+    private LogToEditText display;
     private RxHandler rx = new RxHandler();
     private TxHandler tx = new TxHandler();
 
@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // output as much as possible
         while (buffer[head] != null) {
-            log.log(buffer[head]);
+            display.append(buffer[head]);
             buffer[head] = null;
             head = (head + 1) % MAX_ID;
         }
@@ -76,10 +76,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (requestCode) {
             case CAMERA_PERMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    log.log("Camera granted");
+                    display.log("Camera granted");
                     rx.setup(findViewById(R.id.surface_view), this);
                 } else {
-                    log.log("Camera denied");
+                    display.log("Camera denied");
                     rx.stop();
                 }
                 break;
@@ -87,10 +87,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case IR_PERMS: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    log.log("IR granted");
+                    display.log("IR granted");
                     tx.setup(this);
                 } else {
-                    log.log("IR denied");
+                    display.log("IR denied");
                     tx.stop();
                 }
                 break;
@@ -102,12 +102,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        getPermissions();
 
-        // Log output to display
+        // setup display
         EditText console = (EditText) findViewById(R.id.console);
         console.setOnClickListener(this);
-        log = new LogToEditText(console, TAG);
+        display = new LogToEditText(console, TAG);
+
+        // request camera & IR
+        getPermissions();
     }
 
     @Override
@@ -119,7 +121,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        log.clear();
+        display.clear();
     }
 
     @Override
@@ -128,8 +130,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         tx.stop();
         rx.stop();
 
-        if (log != null) {
-            log.destroy();
+        if (display != null) {
+            display.destroy();
         }
     }
 
