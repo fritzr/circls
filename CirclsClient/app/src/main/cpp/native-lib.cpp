@@ -160,18 +160,22 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
 }
 
 #define PULSE_WIDTH 8
-#define IR_PACKET_SIZE 20
+#define IR_PACKET_SIZE 32
 
 extern "C"
 JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject, jint id) {
     // magic + fcs
-    jint buf[IR_PACKET_SIZE] = {1 * PULSE_WIDTH,
-                                1 * PULSE_WIDTH,
-                                1 * PULSE_WIDTH,
-                                5 * PULSE_WIDTH};
+    jint buf[IR_PACKET_SIZE] = {2 * PULSE_WIDTH, 1 * PULSE_WIDTH,  // 1
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH,  // 0
+                                2 * PULSE_WIDTH, 1 * PULSE_WIDTH,  // 1
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH,  // 0
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH,  // 0
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH,  // 0
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH,  // 0
+                                1 * PULSE_WIDTH, 2 * PULSE_WIDTH}; // 0
 
     // each bit is represented by a total of 3 pulses
-    int i = 4;
+    int i = 16;
     for (int b = 7; b >= 0; b--) {
         bool set = (id >> b) & 1;
         buf[i++] = (set ? 2 : 1) * PULSE_WIDTH; // on
