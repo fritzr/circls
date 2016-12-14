@@ -89,6 +89,57 @@ void detectSymbols(int32_t frame[][3], jchar symbols[], int pixels) {
 
 }
 
+/*
+static bool
+decode_rs_check (uint8_t *encoded, size_t length)
+{
+    bool check_pass = true;
+    int st;
+
+    // This length will be too long, since we won't copy out the parity bits,
+    // but close enough.
+    uint8_t *outbuf = new uint8_t[length];
+
+    // Then decode the remainder of the message, in 255-byte chunks.
+    // The input in 255 - NPAR byte data chunks, with NPAR parity bits after each
+    // chunk, plus a possibly smaller chunk at the end, followed by a FCS.
+    int left = length;
+    int i = 0;
+    int out_index = 0;
+    int in_index = 0;
+    while (left > 0)
+    {
+        int en_chunk = 255;
+        if (left < en_chunk)
+            en_chunk = left;
+
+        decode_data (encoded + in_index, en_chunk);
+        int syndrome = check_syndrome ();
+        if (syndrome != 0)
+        {
+            cerr << "non-zero syndrome in codeword " << i << ": "
+            << hex << setw(8) << setfill('0') << syndrome << endl;
+            st = correct_errors_erasures (encoded + in_index, en_chunk, 0, NULL);
+            if (st != 1)
+            {
+                cerr << "  -> error correction failed" << endl;
+                check_pass = false;
+            }
+        }
+        memcpy (outbuf + out_index, encoded + in_index, en_chunk - NPAR);
+        out_index += en_chunk - NPAR; // don't keep parity bits in the output
+        in_index += en_chunk;
+        left -= en_chunk;
+        i++;
+    }
+
+    dump_buf (outbuf, out_index, "decoded packet");
+    delete[] outbuf;
+
+    return check_pass;
+}
+*/
+
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEnv &env, jobject, Mat &matRGB) {
     int pixels = matRGB.rows;
@@ -115,22 +166,30 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
 
 extern "C"
 JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject, jint id) {
-    int len = 18;
+    // magic + fcs
+    jint buf[12] = {1,1,1,5};
+
+    // starting position of next on pulse
+    int len = 4, b = 7;
+    int on, off;
+    do {
+        on = 0;
+        while ( (id >> b & 1) && (b >= 0) ) {
+            on++;
+            b--;
+        }
+        buf[len++] = on;
+
+        off = 0;
+        while ( !(id >> b & 1) && (b >= 0) ) {
+            off++;
+            b--;
+        }
+        buf[len++] = off;
+    } while (b >= 0);
 
     jintArray ret = env.NewIntArray(len);
     if (ret != NULL) {
-        jint buf[len];
-
-        // header is 4 on pulses followed by 4 off pulses
-        buf[0] = 4;
-        buf[1] = 4;
-
-        // each bit is represented by a total of 4 pulses
-        for (int i = len - 1; i >= 2; id >>= 1) {
-            buf[i--] = (id & 1) ? 1 : 2; // off
-            buf[i--] = (id & 1) ? 2 : 1; // on
-        }
-
         env.SetIntArrayRegion(ret, 0, len, buf);
     }
     return ret;

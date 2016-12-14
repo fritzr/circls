@@ -41,6 +41,7 @@ public class TxHandler {
                 int data[] = GetNAKPattern(id);
                 mInfraRed.transmit(patternAdapter.createTransmitInfo(
                         new PatternConverter(PatternType.Cycles, IR_CARRIER, data)));
+                Log.d(String.valueOf(id), Arrays.toString(data));
             }
         }
     }
