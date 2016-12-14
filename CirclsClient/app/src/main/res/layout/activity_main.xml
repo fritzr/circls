@@ -14,7 +14,7 @@
 
     <EditText
         android:id="@+id/console"
-        android:text="@string/console_placeholder"
+        android:text=""
         android:background="@color/console_background"
         android:layout_width="match_parent"
         android:gravity="bottom"
@@ -24,6 +24,7 @@
         android:textColor="@color/console_text"
         android:scrollbarAlwaysDrawVerticalTrack="true"
         android:inputType="textMultiLine"
+        android:focusable="false"
         android:layout_height="120dp"
         android:layout_below="@+id/surface_view"
         android:layout_alignParentStart="true"

@@ -12,7 +12,7 @@ import com.obd.infrared.transmit.TransmitterType;
 
 public class TxHandler {
     private static final String TAG = "TxHandler";
-    private static final int IR_CARRIER = 33000;
+    private static final int IR_CARRIER = 38400;
 
     private InfraRed mInfraRed;
     private PatternAdapter patternAdapter;
