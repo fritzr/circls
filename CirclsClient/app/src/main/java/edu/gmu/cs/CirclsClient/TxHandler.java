@@ -1,6 +1,7 @@
 package edu.gmu.cs.CirclsClient;
 
 import android.content.Context;
+import android.util.Log;
 
 import com.obd.infrared.InfraRed;
 import com.obd.infrared.log.Logger;
@@ -10,6 +11,7 @@ import com.obd.infrared.patterns.PatternConverter;
 import com.obd.infrared.patterns.PatternType;
 import com.obd.infrared.transmit.TransmitterType;
 
+import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
