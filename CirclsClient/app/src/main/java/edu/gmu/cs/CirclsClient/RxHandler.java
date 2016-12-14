@@ -9,7 +9,6 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
-import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -27,20 +26,16 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     static { System.loadLibrary("native-lib"); }
     private native char[] ImageProcessor(long inputFrame);
 
-    int i = 0;//tmp
-    Random rnd = new Random(); // tmp
     class Worker implements Runnable {
         private Mat mat;
-        private int id; //tmp
-        Worker(Mat mat, int id) {
-            this.mat = mat; this.id = id;
+        Worker(Mat mat) {
+            this.mat = mat;
         }
 
         @Override
         public void run() {
             char data[] = ImageProcessor(mat.getNativeObjAddr());
-            if (rnd.nextInt(10) < 8) //tmp
-            mDisplay.update(id, String.valueOf(data));
+            mDisplay.update(data[0], String.valueOf(data));
         }
     }
 
@@ -109,8 +104,7 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat mat = inputFrame.rgba();
-        mWorkers.execute(new Worker(mat, i));
-        i = (i + 1) % 256; //tmp
+        mWorkers.execute(new Worker(mat));
         return mat;
     }
 }

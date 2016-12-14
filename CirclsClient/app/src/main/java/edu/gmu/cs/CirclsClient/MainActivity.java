@@ -11,6 +11,8 @@ import android.widget.EditText;
 
 import com.obd.infrared.log.LogToEditText;
 
+import java.util.Random;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, MessageHandler {
     private static final String TAG = "CIRCLS Client";
     private static final int CAMERA_PERMS = 0xbeef;
@@ -33,7 +35,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // output as much as possible
         while (buffer[head] != null) {
-            display.append(buffer[head]);
+//            display.append(buffer[head]);
             buffer[head] = null;
             head = (head + 1) % MAX_ID;
         }
@@ -41,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // send NAK for missing packets at the head
         // if we've received a packet outside of the new window
         if ((id - head + MAX_ID) % MAX_ID  > WINDOW_SIZE) {
-            tx.sendNAK(head);
+//            tx.sendNAK(head);
         }
     }
 
@@ -116,9 +118,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         tx.start();
     }
 
+    Random rnd = new Random(); // tmp
     @Override
     public void onClick(View v) {
-        display.clear();
+//        display.clear();
+        int i = rnd.nextInt(256);
+        display.log("Sending: " + i);
+        tx.sendNAK(i);
     }
 
     @Override
