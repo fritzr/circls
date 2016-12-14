@@ -115,13 +115,22 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_ImageProcessor(JNIEn
 
 extern "C"
 JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject, jint id) {
-    int len = sizeof(id) * 2;
+    int len = 18;
 
     jintArray ret = env.NewIntArray(len);
     if (ret != NULL) {
         jint buf[len];
-        buf[0] = id;
-        buf[1] = 0;
+
+        // header is 4 on pulses followed by 4 off pulses
+        buf[0] = 4;
+        buf[1] = 4;
+
+        // each bit is represented by a total of 4 pulses
+        for (int i = len - 1; i >= 2; id >>= 1) {
+            buf[i--] = (id & 1) ? 1 : 2; // off
+            buf[i--] = (id & 1) ? 2 : 1; // on
+        }
+
         env.SetIntArrayRegion(ret, 0, len, buf);
     }
     return ret;
