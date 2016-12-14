@@ -33,7 +33,7 @@ public class LogToEditText extends Logger {
                 boolean hasNew = false;
                 while (!strings.isEmpty()) {
                     hasNew = true;
-                    textView.append(strings.remove() + lineSeparator);
+                    textView.append(strings.remove());
                 }
                 if (hasNew) {
                     textView.setSelection(textView.getText().length());
@@ -49,17 +49,21 @@ public class LogToEditText extends Logger {
 
     @Override
     public void log(String message) {
-        strings.add("DEBUG [" + tag + "]: " + message);
+        strings.add("DEBUG [" + tag + "]: " + message + lineSeparator);
     }
 
     @Override
     public void warning(String message) {
-        strings.add("WARNING [" + tag + "]: " + message);
+        strings.add("WARNING [" + tag + "]: " + message + lineSeparator);
     }
 
     @Override
     public void error(String description, Exception exception) {
-        strings.add("ERROR [" + tag + "]: ERROR { Description: " + description + "; Exception: " + exception.getMessage() + " }");
+        strings.add("ERROR [" + tag + "]: ERROR { Description: " + description + "; Exception: " + exception.getMessage() + " }" + lineSeparator);
+    }
+
+    public void append(String message) {
+        strings.add(message);
     }
 
     public void clear() {
