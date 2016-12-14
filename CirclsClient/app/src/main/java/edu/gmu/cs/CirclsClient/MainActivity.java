@@ -38,13 +38,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             head = (head + 1) % MAX_ID;
         }
 
-        // send NAKs
-        int nak = (id + WINDOW_SIZE) % MAX_ID;
-        while (nak != head) {
-            if (buffer[nak] == null) {
-                tx.sendNAK(nak);
-            }
-            nak = (nak + 1) % MAX_ID;
+        // send NAK for missing packets at the head
+        // if we've received a packet outside of the new window
+        if ((id - head + MAX_ID) % MAX_ID  > WINDOW_SIZE) {
+            tx.sendNAK(head);
         }
     }
 
