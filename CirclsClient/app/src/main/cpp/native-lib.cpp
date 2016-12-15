@@ -18,8 +18,8 @@ static jmethodID midStr = NULL;
 static char header_pattern[] = "01010RGBY";
 static char trailer_pattern[] = "010";
 static uint8_t symbol_buffer[1024 * 256];
-static int first = 0;
-static int last = 0;
+static uint32_t first = 0;
+static uint32_t last = 0;
 
 
 // takes an OpenCV Matrix of 3D pixels
@@ -84,11 +84,11 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
 }
 
 // takes a flat frame of pixels, symbol storage, and the number of pixels
-// returns the symbols detected and # of symbols
-int detectSymbols(int32_t frame[][3], int pixels)
+// puts into symbol_buffer and updates last
+void detectSymbols(int32_t frame[][3], int pixels)
 {
+    uint32_t j = last; // symbol index
     char p = '0';
-    int len = 0;
 
     // convert Lab numbers to 01RGBY representation
     for (int i = 0; i < pixels; i++)
@@ -115,50 +115,62 @@ int detectSymbols(int32_t frame[][3], int pixels)
         // same as last pixel?
         if (c != p)
         {
-            symbol_buffer[last] = p;
-            last = (last + 1) % BUFFER_SIZE;
+            symbol_buffer[j] = p;
+            j = (j + 1) % BUFFER_SIZE;
             p = c;
         }
     }
 
-    return len;
+    // update symbol_buffer last index
+    last = j;
 }
 
 
 // convert symbols into bits and return as bytes
 int demodulate(uint8_t data[], int len)
 {
-    int s = first;
+    uint32_t i = first; // symbol index
+    int j = 0;     // data index
+    int k = 0;     // bit index
 
-    for (int i = 0; i < len; i++)
-    {
-        uint8_t n = 0;
-        for (int j = 0; j < 8; j += 2)
+    // process all symbols starting at first up to len
+    for (; i != (first + len - 1) %  BUFFER_SIZE; i = (i + 1) %  BUFFER_SIZE) {
+        uint8_t b;
+        switch(symbol_buffer[i])
         {
-            uint8_t b;
-            switch(symbol_buffer[s])
-            {
-                case 'R':
-                    b = 0x00;
-                    break;
-                case 'G':
-                    b = 0x01;
-                    break;
-                case 'B':
-                    b = 0x10;
-                    break;
-                case 'Y':
-                    b = 0x11;
-                    break;
-                default:
-                    continue;
-            }
-
-            n |= b << j;
-            s = (s + 1) % BUFFER_SIZE;
+            case 'R':
+                b = 0x00;
+                break;
+            case 'G':
+                b = 0x01;
+                break;
+            case 'B':
+                b = 0x10;
+                break;
+            case 'Y':
+                b = 0x11;
+                break;
+            default:
+                // non-data symbol
+                continue;
         }
-        data[i] = n;
+
+        // insert data symbol
+        data[j] |= b << k;
+
+        // update bit index
+        k = (k + 2) % 8;
+
+        // update data index
+        if (k == 0)
+            j++;
     }
+
+    // update symbol_buffer first index
+    first = i;
+
+    // actual number of bytes demodulated
+    return j;
 }
 
 
@@ -201,13 +213,14 @@ int decode_rs (uint8_t *encoded, size_t length)
 }
 
 
+// search for header followed by arbitrary symbols and a trailer
 int findPacket()
 {
     bool found_header = false;
     int pos = 0;
     int i = first;
 
-    for (; i != last; i = (i + 1) %  BUFFER_SIZE) {
+    for (; i != (last - 1 + BUFFER_SIZE) %  BUFFER_SIZE; i = (i + 1) %  BUFFER_SIZE) {
         if (symbol_buffer[i] == header_pattern[pos]) {
             pos++;
         } else {
@@ -215,7 +228,7 @@ int findPacket()
         }
         if (pos == strlen(header_pattern)) {
             // can't really do anything with any prior symbols
-            first = i + BUFFER_SIZE - strlen(header_pattern);
+            first = i;
 
             // found it
             found_header = true;
@@ -265,29 +278,75 @@ JNIEXPORT void Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env
     // detect symbols
     detectSymbols(frame, num_pixels);
 
+    // this will display the raw symbols and get out
+/*
+    jcharArray message = env.NewCharArray(last);
+    if (message != NULL) {
+        jchar buf[last];
+
+        for (int i = 0; i < last; i++)
+        {
+            buf[i] = symbol_buffer[i];
+        }
+
+        // skip the first byte
+        env.SetCharArrayRegion(message, first, last, buf);
+
+        // send a complete message back
+        env.CallVoidMethod(obj, midStr, last, message);
+    }
+    first = 0;
+    last = 0;
+    return;
+*/
+
     // search for packets
-    while (int num_symbols = findPacket() != 0) {
+    int num_symbols;
+    while (num_symbols = findPacket()) {
+
+// debug stuff
+/*
+        jcharArray test = env.NewCharArray(6);
+        if (test != NULL) {
+            jchar buf[] = { 'p', 'a', 'c', 'k', 'e', 't'};
+            env.SetCharArrayRegion(test, 0, 6, buf);
+            env.CallVoidMethod(obj, midStr, num_symbols, test);
+        }
+*/
         uint8_t data[num_symbols];
         int num_encoded = demodulate(data, num_symbols);
+
+// debug stuff
+/*
+        test = env.NewCharArray(5);
+        if (test != NULL) {
+            jchar buf[] = { 'd', 'e', 'm', 'o', 'd'};
+            env.SetCharArrayRegion(test, 0, 5, buf);
+            env.CallVoidMethod(obj, midStr, num_encoded, test);
+        }
+*/
 
         // RS decoding
         int num_bytes = decode_rs(data, num_encoded);
 
-        // copy data to Java char array
-        jcharArray message = env.NewCharArray(num_bytes);
-        if (message != NULL) {
-            jchar buf[num_bytes];
+        // if it decoded successfully, we have a message!
+        if (num_bytes) {
+            // copy data to Java char array
+            jcharArray message = env.NewCharArray(num_bytes);
+            if (message != NULL) {
+                jchar buf[num_bytes];
 
-            for (int i = 0; i < num_bytes - 1; i++)
-            {
-                buf[i] = data[i + 1];
+                for (int i = 0; i < num_bytes - 1; i++) {
+                    buf[i] = data[i + 1];
+                }
+
+                // first byte should be the id
+                env.SetCharArrayRegion(message, 0, num_bytes - 1, buf);
+
+                // send a complete message back
+                env.CallVoidMethod(obj, midStr, data[0], message);
             }
-
-            // skip the first byte
-            env.SetCharArrayRegion(message, 0, num_symbols - 1, buf);
-
-            // send a complete message back
-            env.CallVoidMethod(obj, midStr, data[0], message);
         }
+
     }
 }
