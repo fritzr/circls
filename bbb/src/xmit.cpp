@@ -265,8 +265,7 @@ handle_interrupt(int signum)
   if (run)
   {
     run = false;
-    pru0_data->flags.halt = 1;
-    //pru1_data->flags.halt = 1;
+    pru0_data->halt = 1;
     cout << "sent halt" << endl;
   }
   // After two interrupts, force quit

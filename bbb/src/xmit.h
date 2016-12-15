@@ -16,27 +16,13 @@ struct circls_tx_hdr_t {
   uint8_t  seq;    // sequence number
 } __attribute__((packed));
 
-
-// Various flags used to communicate internally with the PRUs.
-struct xmit_flags_t {
-  unsigned int _reserved : 7; // bits [7:1]
-  unsigned int halt      : 1; // bit [0]
-}; // 1 byte
-
-struct ir_flags_t {
-  unsigned int _reserved : 8; // bits [7:0]
-  unsigned int event     : 1; // an event has occurred
-  unsigned int halt      : 1; // stop processing (UNUSED)
-}; // 1 byte
-
-
 // Info for transmit PRU - this is copied to the start of PRU0 data memory.
 struct pru_xmit_info_t {
   uint32_t symbol_period_ns; // duration of each symbol
   uint32_t period_ns;        // PWM period within a symbol, for dimming
   uint32_t duty_ns;          //     duty cycle within period_ns
   uint16_t data_len;         // length of data packet in bytes
-  xmit_flags_t  flags;       // host to PRU communication flags
+  uint8_t  halt;       // host to PRU communication - halt
   uint8_t  _pad;             // pad structure to 4-byte boundary
 } __attribute__((packed));
 

@@ -19,11 +19,6 @@
 .ends
 .assign pru_xmit_info, r4, r7, info // map tx info structure starting at r4
 #define DATA_START     16 // data starts immediately after info struct
-// PFLAGS_* - private flags for PRU0
-
-// SFLAGS_* - shared flags for PRU0/1 at the start of shared memory
-#define SFLAGS_HALT  0 // bit 0, set to terminate program
-#define SFLAGS_START 1 // bit 1, set to allow program to start
 
 .struct pru_data_info
   .u32 buf     // data word buffer, copied from register file
@@ -186,8 +181,8 @@ SYMBOL_NEXT:
         QBNE    SET_OUTBITS, data.shift, 0
 
         // Take this time to check if the halt register is asserted
-        LBCO    r11.b0, SHMEM_COFF, 0, 1
-        QBBS    END, r11.b0, SFLAGS_HALT
+        LBBO    r11.b0, REG_LEDS, OFFSET(info.flags), 1 // REG_LEDS === 0
+        QBNE    END, r11.b0, 0
 
         // go to next reg while reg.current < reg.end
         ADD     data.cycles, data.cycles, 4 * NS_PER_INSTR // branch + halt
