@@ -23,9 +23,12 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     private BaseLoaderCallback mLoaderCallback;
     private MessageHandler mDisplay;
 
+    // jni
     static { System.loadLibrary("native-lib"); }
-    private native char[] FrameProcessor(long inputFrame);
-
+    private native void FrameProcessor(long inputFrame);
+    private void receive(int id, char[] message) {
+        mDisplay.update(id, String.valueOf(message));
+    }
 
     class Worker implements Runnable {
         private Mat mat;
@@ -33,16 +36,15 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
 
         @Override
         public void run() {
-            char data[] = FrameProcessor(mat.getNativeObjAddr());
-            mDisplay.update(data[0], String.valueOf(data));
+            FrameProcessor(mat.getNativeObjAddr());
         }
     }
 
     public RxHandler() {
-        // use multiple threads to handle Rx images
+        // only handle one frame at a time
         mWorkers = new ThreadPoolExecutor(
-                NUMBER_OF_CORES * 2,
-                NUMBER_OF_CORES * 2,
+                1,
+                1,
                 THREAD_KEEPALIVE,
                 TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>()

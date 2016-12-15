@@ -19,15 +19,14 @@ import java.util.concurrent.TimeUnit;
 public class TxHandler {
     private static final String TAG = "TxHandler";
     private static final int IR_CARRIER = 38400;
+    private static final int PULSE_WIDTH = 8;
+    private static final int IR_PACKET_SIZE = 32;
     private static final long THREAD_KEEPALIVE = 1000; // ms
 
     private final ThreadPoolExecutor mWorkers;
 
     private InfraRed mInfraRed;
     private PatternAdapter patternAdapter;
-
-    static { System.loadLibrary("native-lib"); }
-    private native int[] GetNAKPattern(int id);
 
     class Worker implements Runnable {
         private int id;
@@ -81,6 +80,26 @@ public class TxHandler {
     // convert ID to IR pattern and send
     public void sendNAK(int id) {
         mWorkers.execute(new Worker(id));
+    }
+
+
+    // generate NAK pattern from ID
+    int[] GetNAKPattern(int id)
+    {
+        int ret[] = new int[IR_PACKET_SIZE];
+
+        // magic + fcs
+        id |= 0b10100000 << 8;
+
+        // each bit is represented by a total of 4 pulses
+        for (int i = 0, b = 15; b >= 0; b--)
+        {
+            boolean set = ((id >> b) & 1) == 1;
+            ret[i++] = (set ? 3 : 1) * PULSE_WIDTH; // on
+            ret[i++] = (set ? 1 : 3) * PULSE_WIDTH; // off
+        }
+
+        return ret;
     }
 
 }
