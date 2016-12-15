@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void update(int id, String msg) {
-        display.log(id + msg.substring(1));
+        display.log(id + msg);
         /*
         // put new message into buffer
         buffer[id] = msg;

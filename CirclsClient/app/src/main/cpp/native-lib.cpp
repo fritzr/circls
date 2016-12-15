@@ -9,10 +9,18 @@ extern "C"
 using namespace std;
 using namespace cv;
 
-#define PULSE_WIDTH 8
-#define IR_PACKET_SIZE 32
-#define BITS_PER_SYMBOL 2
-#define MAX_ID 256
+// reference to message receiver
+static jmethodID midStr = NULL;
+
+#define BUFFER_SIZE sizeof(symbol_buffer)
+
+// hold symbols captured across multiple frames
+static char header_pattern[] = "01010RGBY";
+static char trailer_pattern[] = "010";
+static uint8_t symbol_buffer[1024 * 256];
+static int first = 0;
+static int last = 0;
+
 
 // takes an OpenCV Matrix of 3D pixels
 // returns a single averaged column of 3D pixels
@@ -77,7 +85,7 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
 
 // takes a flat frame of pixels, symbol storage, and the number of pixels
 // returns the symbols detected and # of symbols
-int detectSymbols(int32_t frame[][3], uint8_t symbols[], int pixels)
+int detectSymbols(int32_t frame[][3], int pixels)
 {
     char p = '0';
     int len = 0;
@@ -107,7 +115,8 @@ int detectSymbols(int32_t frame[][3], uint8_t symbols[], int pixels)
         // same as last pixel?
         if (c != p)
         {
-            symbols[len++] = p;
+            symbol_buffer[last] = p;
+            last = (last + 1) % BUFFER_SIZE;
             p = c;
         }
     }
@@ -119,7 +128,7 @@ int detectSymbols(int32_t frame[][3], uint8_t symbols[], int pixels)
 // convert symbols into bits and return as bytes
 int demodulate(uint8_t data[], int len)
 {
-    int s = 0;
+    int s = first;
 
     for (int i = 0; i < len; i++)
     {
@@ -127,7 +136,7 @@ int demodulate(uint8_t data[], int len)
         for (int j = 0; j < 8; j += 2)
         {
             uint8_t b;
-            switch(data[s++])
+            switch(symbol_buffer[s])
             {
                 case 'R':
                     b = 0x00;
@@ -146,6 +155,7 @@ int demodulate(uint8_t data[], int len)
             }
 
             n |= b << j;
+            s = (s + 1) % BUFFER_SIZE;
         }
         data[i] = n;
     }
@@ -191,12 +201,57 @@ int decode_rs (uint8_t *encoded, size_t length)
 }
 
 
+int findPacket()
+{
+    bool found_header = false;
+    int pos = 0;
+    int i = first;
+
+    for (; i != last; i = (i + 1) %  BUFFER_SIZE) {
+        if (symbol_buffer[i] == header_pattern[pos]) {
+            pos++;
+        } else {
+            pos=0;
+        }
+        if (pos == strlen(header_pattern)) {
+            // can't really do anything with any prior symbols
+            first = i + BUFFER_SIZE - strlen(header_pattern);
+
+            // found it
+            found_header = true;
+            break;
+        }
+    }
+
+    // if we have a header, let's look for trailer
+    if (found_header) {
+        pos = 0;
+        for (; i != last; i = (i + 1) % BUFFER_SIZE) {
+            if (symbol_buffer[i] == trailer_pattern[pos]) {
+                pos++;
+            } else {
+                pos = 0;
+            }
+            if (pos == strlen(trailer_pattern)) {
+                // we have a packet
+                return i;
+            }
+        }
+    }
+
+    return 0;
+}
+
 extern "C"
-JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject,
+JNIEXPORT void Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            Mat &matRGB)
 {
+    // only need to look this up once
+    if (midStr == NULL ) {
+        midStr = env.GetMethodID(env.GetObjectClass(obj), "receive", "(I[C)V");
+    }
+
     int num_pixels = matRGB.rows;
-    uint8_t data[num_pixels];
 
     // flatten frame in Lab color-space
     Mat matLab;
@@ -208,52 +263,31 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     matLab.release();
 
     // detect symbols
-    int num_symbols = detectSymbols(frame, data, num_pixels);
-/*
-    // demodulate symbols into bytes
-    int num_encoded = demodulate(data, num_symbols);
+    detectSymbols(frame, num_pixels);
 
-    // RS decoding
-    int num_bytes = decode_rs(data, num_encoded);
-*/
-    jcharArray ret = env.NewCharArray(num_symbols);
-    if (ret != NULL) {
-        jchar buf[num_symbols];
+    // search for packets
+    while (int num_symbols = findPacket() != 0) {
+        uint8_t data[num_symbols];
+        int num_encoded = demodulate(data, num_symbols);
 
-        buf[0] = num_symbols;
-        for (int i = 1; i < num_symbols; i++)
-        {
-            buf[i] = data[i];
+        // RS decoding
+        int num_bytes = decode_rs(data, num_encoded);
+
+        // copy data to Java char array
+        jcharArray message = env.NewCharArray(num_bytes);
+        if (message != NULL) {
+            jchar buf[num_bytes];
+
+            for (int i = 0; i < num_bytes - 1; i++)
+            {
+                buf[i] = data[i + 1];
+            }
+
+            // skip the first byte
+            env.SetCharArrayRegion(message, 0, num_symbols - 1, buf);
+
+            // send a complete message back
+            env.CallVoidMethod(obj, midStr, data[0], message);
         }
-
-        // copy results to return
-        env.SetCharArrayRegion(ret, 0, num_symbols, buf);
     }
-    return ret;
-}
-
-
-extern "C"
-JNIEXPORT jintArray Java_edu_gmu_cs_CirclsClient_TxHandler_GetNAKPattern(JNIEnv &env, jobject,
-                                                                         jint id)
-{
-    jint buf[IR_PACKET_SIZE];
-
-    // magic + fcs
-    id |= 0b10100000 << 8;
-
-    // each bit is represented by a total of 4 pulses
-    for (int i = 0, b = 15; b >= 0; b--)
-    {
-        bool set = (id >> b) & 1;
-        buf[i++] = (set ? 3 : 1) * PULSE_WIDTH; // on
-        buf[i++] = (set ? 1 : 3) * PULSE_WIDTH; // off
-    }
-
-    jintArray ret = env.NewIntArray(IR_PACKET_SIZE);
-    if (ret != NULL)
-    {
-        env.SetIntArrayRegion(ret, 0, IR_PACKET_SIZE, buf);
-    }
-    return ret;
 }
