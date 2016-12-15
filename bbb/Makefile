@@ -52,6 +52,7 @@ $(BIN)/ledtest: LDLIBS+=-lpthread
 xmit: LDLIBS+=-lprussdrvd -lm -lecc
 xmit: lib-rscode-1.3
 
+irtest: $(BIN)/ir.bin
 irtest: LDLIBS+=-lprussdrvd
 
 # specific targets for each library

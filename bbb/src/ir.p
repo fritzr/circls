@@ -38,10 +38,8 @@
 #define PWM_WIDTH   4  // number of pulses in one bit
 
 // PFLAGS_* - private flags for PRU1
-
-// SFLAGS_* - shared flags for PRU0/1
-#define SFLAGS_HALT  0 // bit 0, set to terminate program
-#define SFLAGS_START 1 // bit 1, set to allow program to start
+#define PFLAGS_EVENT 1 // bit 1
+#define PFLAGS_HALT  0 // bit 0 - unused
 
 .struct pru_data
    .u32 fs_period
@@ -54,7 +52,7 @@
 
 #define IR_IN r31.t16
 #define IR_INREG r31
-#define IR_INBIT 16
+#define IR_INBIT 3
 
 #define NS_PER_INSTR 5
 // inverse of the carrier frequency (38.4kHz in our case)
@@ -79,6 +77,10 @@
 
 START:
         MOV    data.fs_period, FS_PERIOD
+        LDI    r3, 0
+        LDI    info.count, 0
+
+        MOV    r31, PRU_R31_VEC_VALID | EVENTOUT1
 
         // keep reading the IR bit until we are active
 INACTIVE_WAIT:
@@ -87,7 +89,7 @@ INACTIVE_WAIT:
 //        SUB r0, r0, 2*NS_PER_INSTR // 2 instructions per loop cycle
 //        QBNE WAIT_FS1, r0, 0
 //        QBBS INACTIVE_WAIT, IR_INREG, IR_INBIT
-        WBC    IR_IN
+        WBC    r31, IR_INBIT
 
         LDI    info.frame, 0
         LDI    data.bits, FRAME_BITS
@@ -98,7 +100,7 @@ LOOP_READBIT:
 
 LOOP_READPULSE:
         // Count parity of each pulse
-        QBBC   ZERO_PULSE, IR_IN // if we see a '1' pulse, add 1 to parity
+        QBBC   ZERO_PULSE, r31, IR_INBIT // if we see a '1' pulse, add to parity
         ADD    data.parity, data.parity, 1
 ZERO_PULSE: // ADD data.parity, data.parity, 0
         MOV r0, data.fs_period
@@ -127,11 +129,14 @@ PARITY_ZERO:
         QBNE   LOOP_READBIT, data.bits, 0
 
         // Write back to memory
+        CLR    info.flags, PFLAGS_EVENT
         ADD    info.count, info.count, 1 // increment frame-written count
-        SBCO   info, c24, 0, SIZE(info) // c24 == 0 info.count, info.frame
-
-        // Notify host of new IR frame
-        LDI    r30, PRU_R31_VEC_VALID + EVENTOUT1
+        SBBO   &info, r3, 0, 4 // r3 === 0, start of memory
+        // Note it is important here that the PFLAGS_EVENT bit in info.flags
+        // gets written LAST, otherwise the host may read the entire data
+        // structure before we've finished writing to it.
+        SET    info.flags, PFLAGS_EVENT
+        SBBO   &info.flags, r3, OFFSET(info.flags), SIZE(info.flags)
 
         // Wait for activity on IR
         QBA   INACTIVE_WAIT

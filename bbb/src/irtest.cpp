@@ -34,7 +34,7 @@ using namespace std;
 
 #define PRU_PROG "./bin/ir.bin"
 
-static pru_ir_info_t     *pru_data;  // start of PRU memory
+static volatile pru_ir_info_t     *pru_data;  // start of PRU memory
 
 static bool
 check_exists (const char *message, const char *filename)
@@ -66,6 +66,7 @@ handle_interrupt(int signum)
 int
 main (int argc, char *argv[])
 {
+  int evt = 0;
   tpruss_intc_initdata interrupts = PRUSS_INTC_INITDATA;
 
   if (getuid () != 0) {
@@ -91,14 +92,16 @@ main (int argc, char *argv[])
   prussdrv_pruintc_init(&interrupts);
 
   // Map PRU memory
-  if (prussdrv_map_prumem (PRU_RAM, (void **)&pru_data) < 0)
+  pru_data = 0;
+  if (prussdrv_map_prumem (PRU_RAM, (void **)&pru_data) < 0
+      || pru_data == 0 || pru_data == MAP_FAILED)
   {
     cerr << "failed to map PRU memory!" << endl;
     goto done;
   }
 
   /* Clear PRU memory  */
-  memset (pru_data, 0, sizeof(*pru_data));
+  memset ((void *)pru_data, 0, sizeof (pru_ir_info_t));
 
   // Load and execute binary on PRU
   if (prussdrv_exec_program (PRU_NUM, PRU_PROG) < 0)
@@ -112,13 +115,18 @@ main (int argc, char *argv[])
   signal (SIGINT,  handle_interrupt);
   signal (SIGQUIT, handle_interrupt);
 
-  // Wait for event interrupt on event 1
-  while (run)
+  pru_ir_info_t buf;
+  memset (&buf, 0, sizeof(buf));
+  while (true)
   {
-    prussdrv_pru_wait_event (PRU_EVTOUT_1);
-    cout << "[" << setw(3) << pru_data->count << "] 0x"
-      << hex << setw(2) << setfill('0')
-      << *((uint16_t*)&pru_data->frame) << endl;
+    while (pru_data->flags == 0)
+      sched_yield ();
+    memcpy (&buf, (void *)pru_data, sizeof(buf));
+    pru_data->flags = 0;
+    cout << "[" << setw(3) << setfill(' ') << evt++ << ","
+      << setw(3) << setfill(' ') << (int)buf.count
+      << "] 0x" << hex << setw(2) << setfill('0')
+      << (uint16_t)*((uint16_t*)&buf.frame) << endl;
   }
 
 done:

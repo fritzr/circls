@@ -20,11 +20,13 @@ struct circls_tx_hdr_t {
 // Various flags used to communicate internally with the PRUs.
 struct xmit_flags_t {
   unsigned int _reserved : 7; // bits [7:1]
-  unsigned int halt;          // bit [0]
+  unsigned int halt      : 1; // bit [0]
 }; // 1 byte
 
 struct ir_flags_t {
   unsigned int _reserved : 8; // bits [7:0]
+  unsigned int event     : 1; // an event has occurred
+  unsigned int halt      : 1; // stop processing (UNUSED)
 }; // 1 byte
 
 
@@ -37,12 +39,6 @@ struct pru_xmit_info_t {
   xmit_flags_t  flags;       // host to PRU communication flags
   uint8_t  _pad;             // pad structure to 4-byte boundary
 } __attribute__((packed));
-
-struct ir_frame_t {
-  unsigned int magic : 4; // should always be 1010 (0xa)
-  unsigned int fc    : 4; // frame control, see below
-  uint8_t      data;      // varies based on FC
-} __attribute__((packed)); // 2 bytes
 
 // 0  IR_NACK - send to "not acknowledge" a frame.
 // Then data is the sequence number which the receiver missed.
@@ -60,9 +56,9 @@ struct ir_frame_t {
 
 // Info for IR receive PRU - this is copied to the start of PRU1 data memory.
 struct pru_ir_info_t {
-  ir_flags_t flags;
+  uint8_t flags;
   uint8_t count;
-  ir_frame_t frame;
+  uint16_t frame;
 } __attribute__((packed));
 
 
