@@ -23,19 +23,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TxHandler tx = new TxHandler();
 
     // a circular buffer of strings to display
-    private static final int MAX_ID = 256;
+    static final int MAX_ID = 256;
     private static final int WINDOW_SIZE = MAX_ID / 2;
     private String buffer[] = new String[MAX_ID];
     private int head = 0;
 
     @Override
     public void update(int id, String msg) {
+        display.log(id + msg.substring(1));
+        /*
         // put new message into buffer
         buffer[id] = msg;
 
         // output as much as possible
         while (buffer[head] != null) {
-//            display.append(buffer[head]);
+            display.append(buffer.length + " " + buffer[head]);
             buffer[head] = null;
             head = (head + 1) % MAX_ID;
         }
@@ -43,8 +45,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // send NAK for missing packets at the head
         // if we've received a packet outside of the new window
         if ((id - head + MAX_ID) % MAX_ID  > WINDOW_SIZE) {
-//            tx.sendNAK(head);
+            tx.sendNAK(head);
         }
+        */
     }
 
     protected void getPermissions() {
@@ -121,7 +124,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     Random rnd = new Random(); // tmp
     @Override
     public void onClick(View v) {
-//        display.clear();
+        display.clear();
         int i = rnd.nextInt(256);
         display.log("Sending: " + i);
         tx.sendNAK(i);
