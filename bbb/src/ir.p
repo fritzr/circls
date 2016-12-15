@@ -28,27 +28,32 @@
 // This code simply waits until all 16 bits (2B) of the IR frame have been
 // received, then copies the data to PRU data memory and generates an
 // interrupt. The start of PRU data memory looks like this:
+
 .struct pru_ir_info
-  .u8  flags    // [Read]  host flags, see PFLAGS_*
-  .u8  count    // [Write] incremented on each received IR frame
-  .u16 frame    // [Write] received frame data
+  .u8  flags    // host flags, see PFLAGS_*
+  .u8  count    // incremented on each received IR frame
+  // followed by a 512-cycle buffer totaling 64B
 .ends
-.assign pru_ir_info, r4, r4, info
-#define FRAME_BITS 16  // number of bits per frame
-#define PWM_WIDTH   4  // number of pulses in one bit
+.assign pru_ir_info, r5.b2, r5.b3, info
+
+.struct pru_vars
+  .u8  size    // size of data to transfer - always 64B
+  .u8  r0b1
+  .u8  r0b2
+  .u8  r0b3
+  .u8  reg     // register pointer: write buf to *reg when it's full
+  .u8  r1b1
+  .u8  r1b2
+  .u8  r1b3
+  .u32 buf     // bits are read into buf
+  .u32 fscount // counter for waiting a sample period
+  .u32 off     // offset of data from start of data memory, always 4B
+.ends
+.assign pru_vars, r0, r4, data
+#define REGFILE_START r6 // from here, 16 registers = 512 cycles @ 1 bit/cycle
 
 // PFLAGS_* - private flags for PRU1
-#define PFLAGS_EVENT 1 // bit 1
-#define PFLAGS_HALT  0 // bit 0 - unused
-
-.struct pru_data
-   .u32 fs_period
-   .u8 bits       // from 0 to FRAME_BITS-1
-   .u8 npulse     // from 0 to PWM_WIDTH-1
-   .u8 parity     // number of HIGH pulses in a PWM_WIDTH window
-   .u8 pad
-.ends
-.assign pru_data, r5, r6, data
+#define PFLAGS_EVENT 0 // bit 0
 
 #define IR_IN r31.t16
 #define IR_INREG r31
@@ -64,10 +69,10 @@
 // number of pulses comprising one symbol
 #define PWM_PULSES       4
 
-// sample period at which we read the IR pin, once per pulse in this case
-// yes, Nyquist says we need twice this to find all the cycles,
-// but this vastly simplifies the decoding for the common case
-#define FS_PERIOD 208330 // round(CYCLES_PER_PULSE * CYCLE_PERIOD, nearest 10)
+// Sample period at which we read the IR pin.
+// We subtract the time for the 4 wasted instructions in the BITS_LOOP
+// for optimal accuracy.
+#define FS_PERIOD 26040 - 4*NS_PER_INSTR
 
 #define PRU_R31_VEC_VALID 32
 #define EVENTOUT1 4
@@ -76,69 +81,63 @@
 .entrypoint START       // program entry point used by the debugger
 
 START:
-        MOV    data.fs_period, FS_PERIOD
-        LDI    r3, 0
-        LDI    info.count, 0
+        LDI    data.off,  4  // Write data back at 4B past start of data memory
+        LDI    data.size, 64 // Always send back 64B = 512 cycles
 
-        MOV    r31, PRU_R31_VEC_VALID | EVENTOUT1
-
-        // keep reading the IR bit until we are active
+        // Wait until IR bit is active (active low)
 INACTIVE_WAIT:
-//        MOV r0, data.fs_period
-//WAIT_FS1:
-//        SUB r0, r0, 2*NS_PER_INSTR // 2 instructions per loop cycle
-//        QBNE WAIT_FS1, r0, 0
-//        QBBS INACTIVE_WAIT, IR_INREG, IR_INBIT
         WBC    r31, IR_INBIT
 
-        LDI    info.frame, 0
-        LDI    data.bits, FRAME_BITS
+        LDI    data.reg, &REGFILE_START
 
-LOOP_READBIT:
-        LDI    data.npulse, PWM_PULSES
-        LDI    data.parity, 0
+        // We usually transmit for:
+        //   8 cycles/pulse * 4 pulses/bit * 16 bits => 512 cycles
+        // Thus we use 16 registers to buffer the data:
+        //   32 bits/register * 1 bit/cycle => 512 cycles
+        LOOP END_REGS_LOOP, 16
 
-LOOP_READPULSE:
-        // Count parity of each pulse
-        QBBC   ZERO_PULSE, r31, IR_INBIT // if we see a '1' pulse, add to parity
-        ADD    data.parity, data.parity, 1
-ZERO_PULSE: // ADD data.parity, data.parity, 0
-        MOV r0, data.fs_period
-WAIT_FS2:
-        SUB r0, r0, 2*NS_PER_INSTR // 2 instructions per loop cycle
-        QBNE WAIT_FS2, r0, 0
-        // Keep going until we've read enough pulses
-        SUB    data.npulse, data.npulse, 1
-        QBNE   LOOP_READPULSE, data.npulse, 0
+        // Copy 32 bits/register
+        MOV    data.buf, 0
+        LOOP END_BITS_LOOP, 32
 
-        // We are active low; symbols are defined as follows:
-        //
-        // Symbol:        0                  1
-        //          _   _________      _         ___
-        //           |_|                |_______|
-        // Pulses:    0  1  1  1         0  0  0  1
-        //
-        // Therefore, if parity is greater than 1 we say the symbol is 0.
-        QBLT   PARITY_ZERO, data.parity, 1 // parity > 1, -> symbol 0
-        OR     info.frame, info.frame, 1   //   otherwise -> symbol 1
-PARITY_ZERO:
-        LSL    info.frame, info.frame, 1   // shift bits into place
+        // Read the next bit - HIGH means INACTIVE, so set a 1 on LOW
+        LSL    data.buf, data.buf, 1
+        QBBS   INACTIVE, IR_INREG, IR_INBIT
+        OR     data.buf, data.buf, 1 // ACTIVE, set 1
+INACTIVE:
 
-        // Read more bits if we need them
-        SUB    data.bits, data.bits, 1
-        QBNE   LOOP_READBIT, data.bits, 0
+        // Wait one sample period before we check the next bit
+        LDI    data.fscount, FS_PERIOD
+WAIT_FS:
+        SUB    data.fscount, data.fscount, 2*NS_PER_INSTR
+        QBNE   WAIT_FS, data.fscount, 0
 
-        // Write back to memory
+END_BITS_LOOP:
+        // Done with all 32 bits in r0, copy them back to the register file
+        MVID   *data.reg, data.buf  // copy r0 into regfile[reg++]
+        ADD    data.reg, data.reg, 1
+
+END_REGS_LOOP:
+        // Done with all 16 registers, giving us a 512-cycle buffer
+        // in the register file starting at REGFILE_START
+
+        // First transmit info up to host
         CLR    info.flags, PFLAGS_EVENT
-        ADD    info.count, info.count, 1 // increment frame-written count
-        SBBO   &info, r3, 0, 4 // r3 === 0, start of memory
+        ADD    info.count, info.count, 1 // increment frame-sent count
+        SBCO   &info, c4, 0, SIZE(info) // c4 === 0 by default
+
+        // Then transmit the cycle buffer
+        // Store &REGFILE_START to data address 4 (after info struct), size 64B
+        LDI    data.reg, &REGFILE_START
+        SBBO   &data.reg, data.off, 0, b0 // b0 === data.size
+
         // Note it is important here that the PFLAGS_EVENT bit in info.flags
         // gets written LAST, otherwise the host may read the entire data
         // structure before we've finished writing to it.
         SET    info.flags, PFLAGS_EVENT
         SBBO   &info.flags, r3, OFFSET(info.flags), SIZE(info.flags)
 
-        // Wait for activity on IR
+        // Wait for activity on IR and repeat
         QBA   INACTIVE_WAIT
 
 END:    // end of IR program, nobody cares

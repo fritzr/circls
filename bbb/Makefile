@@ -23,7 +23,7 @@ CPPFLAGS+=
 CXXFLAGS+=-g -Wall -std=c++0x $(INCLUDES)
 LDFLAGS+=-L$(BIN) -Wl,-rpath,$(shell pwd)/bin
 LDLIBS=
-ASMFLAGS=-V2
+ASMFLAGS=-V3
 
 # external library targets
 LIBDIRS=$(shell ls -dF $(LIB)/* | grep '/$$')

@@ -36,6 +36,31 @@ using namespace std;
 
 static volatile pru_ir_info_t     *pru_data;  // start of PRU memory
 
+static void
+dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
+{
+  if (msg)
+    cout << msg << " (";
+  cout << "length " << dec << buflen;
+  if (msg)
+    cout << ")";
+  cout << endl;
+
+  if (!buf || !buflen)
+    return;
+
+  cout << "0000: ";
+  for (size_t i = 0; i < buflen; i++)
+  {
+    if (i && ((i % 16) == 0))
+      cout << endl << hex << setw(4) << setfill('0') << i << ": ";
+    else if (i && ((i % 8) == 0))
+      cout << "  ";
+    cout << hex << setw(2) << setfill('0') << (int) *buf++ << " ";
+  }
+  cout << endl;
+}
+
 static bool
 check_exists (const char *message, const char *filename)
 {
@@ -121,12 +146,15 @@ main (int argc, char *argv[])
   {
     while (pru_data->flags == 0)
       sched_yield ();
+    // Save a copy of the buffer and do what we want to it, while we reset
+    // the PRU copy so it is free to queue up another IR event
     memcpy (&buf, (void *)pru_data, sizeof(buf));
-    pru_data->flags = 0;
+    memset ((void *)pru_data, 0, sizeof (*pru_data));
+
     cout << "[" << setw(3) << setfill(' ') << evt++ << ","
       << setw(3) << setfill(' ') << (int)buf.count
-      << "] 0x" << hex << setw(4) << setfill('0')
-      << (uint16_t)*((uint16_t*)&buf.frame) << endl;
+      << "]:" << endl;
+    dump_buf (&buf.cycles[0], sizeof(buf.cycles));
   }
 
 done:

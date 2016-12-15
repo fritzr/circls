@@ -58,7 +58,8 @@ struct pru_xmit_info_t {
 struct pru_ir_info_t {
   uint8_t flags;
   uint8_t count;
-  uint16_t frame;
+  uint8_t _pad[2];
+  uint8_t cycles[64]; // 64B buffer describing the 512 cycles captured
 } __attribute__((packed));
 
 
