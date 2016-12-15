@@ -66,7 +66,7 @@ handle_interrupt(int signum)
 int
 main (int argc, char *argv[])
 {
-  int evt = 0;
+  int evt = 1;
   tpruss_intc_initdata interrupts = PRUSS_INTC_INITDATA;
 
   if (getuid () != 0) {
@@ -125,7 +125,7 @@ main (int argc, char *argv[])
     pru_data->flags = 0;
     cout << "[" << setw(3) << setfill(' ') << evt++ << ","
       << setw(3) << setfill(' ') << (int)buf.count
-      << "] 0x" << hex << setw(2) << setfill('0')
+      << "] 0x" << hex << setw(4) << setfill('0')
       << (uint16_t)*((uint16_t*)&buf.frame) << endl;
   }
 
