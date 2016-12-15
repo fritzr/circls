@@ -54,12 +54,13 @@
 #define LEDR_BIT 0 // 001
 #define LEDG_BIT 1 // 010
 #define LEDB_BIT 2 // 100
+#define LEDY_MASK 3 // (1<<LEDR_BIT)|(1<<LEDG_BIT)
 #define LED_BITS 7 // 111 - mask for all LED bits
 
-#define DATA_RED   0 // 00
-#define DATA_GREEN 1 // 01
-#define DATA_BLUE  2 // 10
-#define DATA_WHITE 3 // 11 - mask for data colors
+#define DATA_RED    0 // 00
+#define DATA_GREEN  1 // 01
+#define DATA_BLUE   2 // 10
+#define DATA_YELLOW 3 // 11 - mask for data colors
 
 // 200MHz -> 5ns per instruction
 #define NS_PER_INSTR 5
@@ -121,20 +122,20 @@ SET_OUTBITS:
         //   00  RED     (LEDR_BIT==0)  set 001
         //   01  GREEN   (LEDG_BIT==1)  set 010
         //   10  BLUE    (LEDB_BIT==2)  set 100
-        //   11  WHITE                  set 111
+        //   11  YELLOW                 set 111
         LDI     data.bits, 0 // clear LED bits
-        AND     r0.b0, data.buf, DATA_WHITE // read bottom 2 bits
+        AND     r0.b0, data.buf, DATA_YELLOW // read bottom 2 bits
         SET     data.bits, r0.b0 // set LED bits from data (see table above)
 
-        QBNE    SKIP_WHITE, r0.b0, DATA_WHITE // r0 != DATA_WHITE, we're done
+        QBNE    SKIP_YELLOW, r0.b0, DATA_YELLOW // r0 != DATA_YELLOW, we're done
 
         // if we actually chose white, we did erroneously set the unused
         // "bit 3" above; however, the unconditional SET saves a branch,
         // and using MOV here fixes it anyway
-        MOV     data.bits, LED_BITS
+        MOV     data.bits, LEDY_MASK
         ADD     data.cycles, data.cycles, 2 * NS_PER_INSTR
 
-SKIP_WHITE:
+SKIP_YELLOW:
         // Shift the data over for next time, decrement shift count
         LSR     data.buf, data.buf, 2
         SUB     data.shift, data.shift, 1
