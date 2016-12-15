@@ -24,17 +24,16 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     private MessageHandler mDisplay;
 
     static { System.loadLibrary("native-lib"); }
-    private native char[] ImageProcessor(long inputFrame);
+    private native char[] FrameProcessor(long inputFrame);
+
 
     class Worker implements Runnable {
         private Mat mat;
-        Worker(Mat mat) {
-            this.mat = mat;
-        }
+        Worker(Mat mat) { this.mat = mat; }
 
         @Override
         public void run() {
-            char data[] = ImageProcessor(mat.getNativeObjAddr());
+            char data[] = FrameProcessor(mat.getNativeObjAddr());
             mDisplay.update(data[0], String.valueOf(data));
         }
     }
