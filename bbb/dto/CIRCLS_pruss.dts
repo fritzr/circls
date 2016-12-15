@@ -22,8 +22,8 @@
     __overlay__ {
       circls_pru_pins: CIRCLS_pruss {
         pinctrl-single,pins = <
-          0x180 0x06  // P9_26 PINS$96  PR1_PRU1_PRU_R31_16
-          0x19c 0x06  // P9_28 PINS$103 PR1_PRU0_PRU_R31_3
+          0x180 0x36  // P9_26 PINS$96  PR1_PRU1_PRU_R31_16, input
+          0x19c 0x36  // P9_28 PINS$103 PR1_PRU0_PRU_R31_3,  input
           0x194 0x05  // P9_29 PINS$101 PR1_PRU0_PRU_R30_1
           0x198 0x05  // P9_30 PINS$102 PR1_PRU0_PRU_R30_2
           0x190 0x05  // P9_31 PINS$100 PR1_PRU0_PRU_R30_0
