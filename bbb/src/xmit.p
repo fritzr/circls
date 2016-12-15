@@ -104,7 +104,6 @@ NEXT_REG:
         MIN     r0, r0, info.left
         // shift = 4 * r0 - 1   ; number of symbols left to send
         LSL     data.shift, r0, 2
-        SUB     data.shift, data.shift, 1
         // left -= r0           ; decrement number of bytes used
         SUB     info.left, info.left, r0
 
