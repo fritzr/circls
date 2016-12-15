@@ -1,7 +1,7 @@
 #PROG_COMMON=sysfs GPIO PWM
 PROG_COMMON=
-PROG_BIN=ledtest xmit
-PRU_BIN=xmit
+PROG_BIN=ledtest xmit irtest
+PRU_BIN=xmit ir
 
 LEDTEST_COMMON=sysfs PWM #GPIO
 LEDTEST_DEPS=$(LEDTEST_COMMON:%=$(BUILD)/%.o)
@@ -52,9 +52,11 @@ $(BIN)/ledtest: LDLIBS+=-lpthread
 xmit: LDLIBS+=-lprussdrvd -lm -lecc
 xmit: lib-rscode-1.3
 
+irtest: LDLIBS+=-lprussdrvd
+
 # specific targets for each library
 
-.PHONY: all dto gpio pwm xmit $(PROG_BIN) $(LIB_TARGETS)
+.PHONY: all dto gpio pwm xmit irtest $(PROG_BIN) $(LIB_TARGETS)
 
 # CD down into 'dto' to build device tree overlays
 dto:

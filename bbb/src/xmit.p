@@ -6,6 +6,7 @@
 //
 // Outputs: REG_LEDS.0 (P9_29), REG_LEDS.1 (P0_30), REG_LEDS.2 (P0_31)
 //
+#include "pru.inc"
 
 // The beginning of PRU memory is laid out as follows:
 .struct pru_xmit_info
@@ -88,31 +89,6 @@ START:
 
         // Unconditional instructions from SET_OUTBITS to PWM_DELAY_LOW
         LDI     data.cycles, 11 * NS_PER_INSTR
-
-        // NB. we omit the following block because we know we will be given
-        // SPERIOD divisible by IPERIOD, due to checking in the host program.
-
-        // We need to check whether the IPERIOD is divisible by SPERIOD.
-        // If not, the duty cycle will be wrong and the xmit frequency will
-        // drift.  However skip this step if the duty-cycle or intra-period are
-        // zero.
-//        QBEQ    CHECK_DIVIS, info.duty, 0
-//        QBEQ    CHECK_DIVIS, info.iperiod, 0
-
-//        MAX     r0, info.iperiod, info.speriod
-//        MIN     r1, info.iperiod, info.speriod
-
-//CHECK_DIVIS: // while (x > 0) x -= y; if (x != 0) FAIL
-//        SUB     r0, r0, r1
-//        QBBS    END, r0, 31 // If r0 < 0, we are not divisible so we quit!
-//        QBLT    CHECK_DIVIS, r0, 0 // If r0 > 0, keep subtracting
-
-        // Wait for START flag to synchronize start times, if HALT is set first
-        // then we can quit immediately
-SYNC_START:
-        LBCO    r11.b0, c28, 0, 1
-        QBBS    END, r11.b0, SFLAGS_HALT
-        QBBC    SYNC_START, r11.b0, SFLAGS_START
 
 NEXT_DATA:
         // read a block at a time; or whatever is left, if less
@@ -210,7 +186,7 @@ SYMBOL_NEXT:
         QBNE    SET_OUTBITS, data.shift, 0
 
         // Take this time to check if the halt register is asserted
-        LBCO    r11.b0, c28, 0, 1
+        LBCO    r11.b0, SHMEM_COFF, 0, 1
         QBBS    END, r11.b0, SFLAGS_HALT
 
         // go to next reg while reg.current < reg.end
@@ -222,5 +198,6 @@ SYMBOL_NEXT:
         QBNE    NEXT_DATA, info.left, 0
 
 END:                               // end of program, send back interrupt
+        LDI     data.bits, 0 // clear LED bits
         MOV     R31.b0, PRU0_R31_VEC_VALID | EVENTOUT0
         HALT

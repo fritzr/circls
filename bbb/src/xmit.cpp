@@ -31,15 +31,22 @@ extern "C"
 #include "ecc.h" // rs-lib
 };
 
+#include "xmit.h"
+
 using namespace std;
 
 #define PRU0_PROG "./bin/xmit.bin"
 #define PRU1_PROG "./bin/ir.bin"
-#define PRU_NUM 0
 
 static pru_xmit_info_t   *pru0_data;  // start of PRU0 memory
 static pru_ir_info_t     *pru1_data;  // start of PRU1 memory
-static pru_shared_info_t *pru_shared; // start of shared PRU memory
+
+// Mapped file. 
+struct mapped_file {
+  size_t len;
+  uint8_t *mem;
+  int fd;
+};
 
 static void
 dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
@@ -64,6 +71,21 @@ dump_buf (const uint8_t *buf, size_t buflen, const char *msg=NULL)
     cout << hex << setw(2) << setfill('0') << (int) *buf++ << " ";
   }
   cout << endl;
+}
+
+static bool
+check_exists (const char *message, const char *filename)
+{
+  bool ret = true;
+  ifstream fil(filename);
+  if (!fil.good ())
+  {
+    cerr << "failed to find " << message << " file ("
+      << filename << ")" << endl;
+    ret = false;
+  }
+  fil.close ();
+  return ret;
 }
 
 static void
@@ -243,7 +265,8 @@ handle_interrupt(int signum)
   if (run)
   {
     run = false;
-    pru_shared->flags.halt = 1;
+    pru0_data->flags.halt = 1;
+    //pru1_data->flags.halt = 1;
     cout << "sent halt" << endl;
   }
   // After two interrupts, force quit
@@ -362,14 +385,12 @@ main (int argc, char *argv[])
     exit(1);
   }
 
-  ifstream bin(PRU_PROG);
-  if (!bin.good ())
-  {
-    cerr << "failed to find PRU binary (" << PRU_PROG << ")" << endl;
-    exit(1);
-  }
-  bin.close ();
+  // Make sure PRU programs exist
+  if (!check_exists ("PRU0", PRU0_PROG)
+      || !check_exists ("PRU1", PRU1_PROG))
+    exit (1);
 
+  // Get command-line options
   pru_xmit_info_t pwm_options;
   memset (&pwm_options, 0, sizeof(pwm_options));
   mapped_file data;
@@ -392,8 +413,7 @@ main (int argc, char *argv[])
 
   // Map PRU memory
   if (prussdrv_map_prumem (PRUSS0_PRU0_DATARAM, (void **)&pru0_data) < 0
-      || prussdrv_map_prumem (PRUSS0_PRU1_DATARAM, (void **)&pru1_data) < 0
-      || prussdrv_map_prumem (PRUSS0_SHARED_DATARAM, (void **)&pru_shared) < 0)
+      || prussdrv_map_prumem (PRUSS0_PRU1_DATARAM, (void **)&pru1_data) < 0)
   {
     cerr << "failed to map PRU memory!" << endl;
     goto done;
@@ -476,17 +496,15 @@ main (int argc, char *argv[])
   signal (SIGINT,  handle_interrupt);
   signal (SIGQUIT, handle_interrupt);
 
-  // Let the PRUs actually start
-  pru_shared->flags.start = 1;
-
-  // Wait for finish interrupt from PRU 0
+  // Wait for halt interrupt on event 0
   evt = prussdrv_pru_wait_event (PRU_EVTOUT_0);
   cout << "PRU done, event " << evt << endl;
 
   ret = 0;
 done:
   /* Disable PRU and close memory mappings.  */
-  prussdrv_pru_disable (PRU_NUM);
+  prussdrv_pru_disable (0);
+  prussdrv_pru_disable (1);
   prussdrv_exit ();
 
   munmap (data.mem, data.len);
