@@ -22,32 +22,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RxHandler rx = new RxHandler();
     private TxHandler tx = new TxHandler();
 
-    // a circular buffer of strings to display
-    static final int MAX_ID = 256;
-    private static final int WINDOW_SIZE = MAX_ID / 2;
-    private String buffer[] = new String[MAX_ID];
-    private int head = 0;
-
     @Override
     public void update(int id, String msg) {
-        display.log(id + msg);
-        /*
-        // put new message into buffer
-        buffer[id] = msg;
+        display.append(msg + '\n');
 
-        // output as much as possible
-        while (buffer[head] != null) {
-            display.append(buffer.length + " " + buffer[head]);
-            buffer[head] = null;
-            head = (head + 1) % MAX_ID;
-        }
-
-        // send NAK for missing packets at the head
-        // if we've received a packet outside of the new window
-        if ((id - head + MAX_ID) % MAX_ID  > WINDOW_SIZE) {
-            tx.sendNAK(head);
-        }
-        */
     }
 
     protected void getPermissions() {
