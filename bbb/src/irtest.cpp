@@ -88,6 +88,38 @@ handle_interrupt(int signum)
   exit(0);
 }
 
+static inline uint8_t
+count_ones(uint32_t dword)
+{
+  uint8_t i;
+  uint8_t sum = 0;
+  for (i = 0; i < 32; i++)
+  {
+    sum += dword & 1;
+    dword >>= 1;
+  }
+  return sum;
+}
+
+static ir_frame_t
+decode_ir (uint32_t *cycles_bits, size_t nwords)
+{
+  ir_frame_t frame = 0;
+
+  // We use 4 pulses per IR bit, and each pulse is 8 bits,
+  // so a single IR word comes out as a 4-byte value. Using our PWM symbol
+  // protocol we should see 00 ff ff ff for a 1, and 00 00 00 ff for a 0.
+  // We count the number of 1 bits by adding the bytes together.
+  for (size_t i = 0; i < nwords; i++)
+  {
+    frame <<= 1;
+    // More ones than zeros, it's a 1
+    if (count_ones(*cycles_bits++) > 16)
+      frame |= 1;
+  }
+  return frame;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -140,6 +172,7 @@ main (int argc, char *argv[])
   signal (SIGINT,  handle_interrupt);
   signal (SIGQUIT, handle_interrupt);
 
+  ir_frame_t ir_frame;
   pru_ir_info_t buf;
   memset (&buf, 0, sizeof(buf));
   while (true)
@@ -155,6 +188,12 @@ main (int argc, char *argv[])
       << setw(3) << setfill(' ') << (int)buf.count
       << "]:" << endl;
     dump_buf (&buf.cycles[0], sizeof(buf.cycles));
+
+    // Decode the IR frame. We pass it as a 4-byte array, because each bit
+    // comes out in 4 bytes = 4 pulses * 8 bits / pulse.
+    ir_frame = decode_ir (
+        (uint32_t *)&buf.cycles[0], sizeof(buf.cycles)/sizeof(uint32_t));
+    cout << "      => 0x" << hex << setw(4) << ir_frame << endl;
   }
 
 done:

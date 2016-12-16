@@ -9,6 +9,7 @@
 #define MAX_PRU_DATA 8192
 
 typedef uint16_t fcs_t; // just use crc16 as fcs
+typedef uint16_t ir_frame_t; // IR frame is just two bytes
 
 // Our transmit header - should contain things like the packet length, etc...
 struct circls_tx_hdr_t {
