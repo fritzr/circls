@@ -38,8 +38,8 @@
 
 .struct pru_vars
   .u8  size    // size of data to transfer - always 64B
-  .u8  r0b1
-  .u8  r0b2
+  .u8  bitsloop // loop through sampling 32 bits
+  .u8  regsloop // loop through sampling 16 regs
   .u8  r0b3
   .u8  reg     // register pointer: write buf to *reg when it's full
   .u8  r1b1
@@ -50,7 +50,7 @@
   .u32 off     // offset of data from start of data memory, always 4B
 .ends
 .assign pru_vars, r0, r4, data
-#define REGFILE_START r6 // from here, 16 registers = 512 cycles @ 1 bit/cycle
+#define REGFILE_START r8 // from here, 16 registers = 512 cycles @ 1 bit/cycle
 
 // PFLAGS_* - private flags for PRU1
 #define PFLAGS_EVENT 0 // bit 0
@@ -83,6 +83,7 @@
 START:
         LDI    data.off,  4  // Write data back at 4B past start of data memory
         LDI    data.size, 64 // Always send back 64B = 512 cycles
+        LDI    r7, 0
 
         // Wait until IR bit is active (active low)
 INACTIVE_WAIT:
@@ -94,12 +95,13 @@ INACTIVE_WAIT:
         //   8 cycles/pulse * 4 pulses/bit * 16 bits => 512 cycles
         // Thus we use 16 registers to buffer the data:
         //   32 bits/register * 1 bit/cycle => 512 cycles
-        LOOP END_REGS_LOOP, 16
+        LDI    data.regsloop, 16
+REGS_LOOP:
 
-        // Copy 32 bits/register
+        // Copy 32 bits into buf, then copy out to register file
         MOV    data.buf, 0
-        LOOP END_BITS_LOOP, 32
-
+        LDI    data.bitsloop, 32
+BITS_LOOP:
         // Read the next bit - HIGH means INACTIVE, so set a 1 on LOW
         LSL    data.buf, data.buf, 1
         QBBS   INACTIVE, IR_INREG, IR_INBIT
@@ -112,24 +114,30 @@ WAIT_FS:
         SUB    data.fscount, data.fscount, 2*NS_PER_INSTR
         QBNE   WAIT_FS, data.fscount, 0
 
-END_BITS_LOOP:
-        // Done with all 32 bits in r0, copy them back to the register file
-        MVID   *data.reg, data.buf  // copy r0 into regfile[reg++]
-        ADD    data.reg, data.reg, 1
+        // Loop while we have more bits to read
+        SUB    data.bitsloop, data.bitsloop, 1
+        QBNE   BITS_LOOP, data.bitsloop, 0
 
-END_REGS_LOOP:
+        // Done with all 32 bits in r0, copy them back to the register file
+        MVID   *data.reg, data.buf   // copy r0 into regfile[reg++]
+        ADD    data.reg, data.reg, 4 // next 4 bytes
+
+        // Loop while we have more regs to fill
+        SUB    data.regsloop, data.regsloop, 1
+        QBNE   REGS_LOOP, data.regsloop, 0
+
         // Done with all 16 registers, giving us a 512-cycle buffer
         // in the register file starting at REGFILE_START
 
         // First transmit info up to host
         CLR    info.flags, PFLAGS_EVENT
         ADD    info.count, info.count, 1 // increment frame-sent count
-        SBCO   &info, c4, 0, SIZE(info) // c4 === 0 by default
+        SBBO   &info, r7, 0, SIZE(info) // c4 === 0 by default
 
         // Then transmit the cycle buffer
         // Store &REGFILE_START to data address 4 (after info struct), size 64B
         LDI    data.reg, &REGFILE_START
-        SBBO   &data.reg, data.off, 0, b0 // b0 === data.size
+        SBBO   &REGFILE_START, data.off, 0, b0 // b0 === data.size
 
         // Note it is important here that the PFLAGS_EVENT bit in info.flags
         // gets written LAST, otherwise the host may read the entire data
