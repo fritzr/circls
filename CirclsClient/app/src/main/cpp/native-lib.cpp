@@ -15,8 +15,8 @@ static jmethodID midStr = NULL;
 #define BUFFER_SIZE sizeof(symbol_buffer)
 
 // hold symbols captured across multiple frames
-static char header_pattern[] = "01010RGBY";
-static char trailer_pattern[] = "010";
+static char header_pattern[] = "RGBYRGBY";
+static char trailer_pattern[] = "YBGRYBGR";
 static uint8_t symbol_buffer[1024 * 256];
 static uint32_t first = 0;
 static uint32_t last = 0;
@@ -279,7 +279,6 @@ JNIEXPORT void Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env
     detectSymbols(frame, num_pixels);
 
     // this will display the raw symbols and get out
-/*
     jcharArray message = env.NewCharArray(last);
     if (message != NULL) {
         jchar buf[last];
@@ -297,56 +296,5 @@ JNIEXPORT void Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env
     }
     first = 0;
     last = 0;
-    return;
-*/
 
-    // search for packets
-    int num_symbols;
-    while (num_symbols = findPacket()) {
-
-// debug stuff
-/*
-        jcharArray test = env.NewCharArray(6);
-        if (test != NULL) {
-            jchar buf[] = { 'p', 'a', 'c', 'k', 'e', 't'};
-            env.SetCharArrayRegion(test, 0, 6, buf);
-            env.CallVoidMethod(obj, midStr, num_symbols, test);
-        }
-*/
-        uint8_t data[num_symbols];
-        int num_encoded = demodulate(data, num_symbols);
-
-// debug stuff
-/*
-        test = env.NewCharArray(5);
-        if (test != NULL) {
-            jchar buf[] = { 'd', 'e', 'm', 'o', 'd'};
-            env.SetCharArrayRegion(test, 0, 5, buf);
-            env.CallVoidMethod(obj, midStr, num_encoded, test);
-        }
-*/
-
-        // RS decoding
-        int num_bytes = decode_rs(data, num_encoded);
-
-        // if it decoded successfully, we have a message!
-        if (num_bytes) {
-            // copy data to Java char array
-            jcharArray message = env.NewCharArray(num_bytes);
-            if (message != NULL) {
-                jchar buf[num_bytes];
-
-                for (int i = 0; i < num_bytes - 1; i++) {
-                    buf[i] = data[i + 1];
-                }
-
-                // first byte should be the id
-                env.SetCharArrayRegion(message, 0, num_bytes - 1, buf);
-
-                // send a complete message back
-                env.CallVoidMethod(obj, midStr, data[0], message);
-            }
-        }
-
-    }
 }
