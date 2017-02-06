@@ -28,12 +28,13 @@ void flattenCols(Mat &mat, int32_t flat[][3])
     int cols = mat.cols;
     uint8_t *data = (uint8_t *)mat.data;
 
-    // initialize flat array
-    memset(flat, 0, sizeof(int32_t) * rows);
+    // initialize flat frame
+    memset(flat, 0, sizeof(int32_t) * rows * 3);
 
+    // for each row
     for (int i = 0; i < rows; i++)
     {
-        // sum column values across the row
+        // sum up the entire row
         for (int j = 0; j < cols; j++)
         {
             flat[i][0] += (*data++);
@@ -41,7 +42,7 @@ void flattenCols(Mat &mat, int32_t flat[][3])
             flat[i][2] += (*data++);
         }
 
-        // average values for the row
+        // calculate row average and adjust
         flat[i][0] /= cols;
         flat[i][1] = flat[i][1] / cols - 128;
         flat[i][2] = flat[i][2] / cols - 128;
@@ -58,11 +59,12 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
     uint8_t *data = (uint8_t *)mat.data;
 
     // initialize flat frame
-    memset(flat, 0, sizeof(int32_t) * cols);
+    memset(flat, 0, sizeof(int32_t) * cols * 3);
 
-    // sum values for each column across all rows
+    // for each row
     for (int i = 0; i < rows; i++)
     {
+        // sum up each col
         for (int j = 0; j < cols; j++)
         {
             flat[j][0] += (*data++);
@@ -71,7 +73,7 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
         }
     }
 
-    // average the values for each flat column
+    // calculate col averages and adjust
     for (int i = 0; i < cols; i++)
     {
         flat[i][0] /= rows;
@@ -97,9 +99,9 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         char c;
 
         // +L = white, +a = red; -a = green; -b = blue; +b = yellow;
-        if (a == b || L < 40)
+        if (a == b)
         {
-            continue;
+            c = (L < 10) ? '0' : '1';
         }
         else if (abs(a) > abs(b))
         {
@@ -228,18 +230,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     // detect symbols
     uint8_t symbols[num_pixels];
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
-
-/*
-    // return symbols
-    jcharArray message = env.NewCharArray(num_symbols);
-    if (message != NULL) {
-        jchar buf[num_symbols];
-        for (int i = 0; i < num_symbols; i++) {
-            buf[i] = symbols[i];
-        }
-        env.SetCharArrayRegion(message, 0, num_symbols, buf);
-    }
-*/
+    ALOG("%.*s", num_symbols, symbols);
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
