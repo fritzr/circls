@@ -128,16 +128,18 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
 
 
 // convert symbols into bits and return as bytes
-int demodulate(uint32_t data[], uint8_t symbols[], int len)
+int demodulate(uint8_t data[], uint8_t symbols[], int len)
 {
-    int j = 0;     // data index
-    int k = 0;     // bit index
+    int j = 3;     // data index
+    uint8_t k = 0;     // bit index
+
+    // preserve byte ordering
     data[j] = 0;
 
     // process all symbols
     for (int i = 0; i < len; i++)
     {
-        uint32_t b = 0;
+        uint8_t b = 0;
         switch (symbols[i]) {
             case 'R':
                 b = 0x00;
@@ -160,16 +162,24 @@ int demodulate(uint32_t data[], uint8_t symbols[], int len)
         data[j] |= b << k;
 
         // update bit index
-        k = (k + 2) % 32;
+        k = (k + 2) % 8;
 
-        // start next word
+        // start of a new byte
         if (k == 0) {
-            j++;
+            // determine next byte position
+            if (j % 4 == 0) {
+                j+= 7;
+            } else {
+                j--;
+            }
             data[j] = 0;
         }
     }
 
-    // number of words demodulated
+    // end of the last word
+    j+= 3;
+
+    // number of bytes demodulated
     return j;
 }
 
@@ -234,7 +244,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
-    int num_encoded = 4 * demodulate((uint32_t*) &data[0], symbols, num_symbols);
+    int num_encoded = demodulate(&data[0], symbols, num_symbols);
 
     // return text
     jcharArray message = env.NewCharArray(num_encoded);
