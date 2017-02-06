@@ -1,8 +1,8 @@
 #define RED   10
-#define GREEN 9
-#define BLUE  11
-#define ANODE 12
-//define CATHODE
+#define GREEN 11
+#define BLUE  9
+//define ANODE
+#define CATHODE 8
 
 #define IR_OUT 3
 #define IR_GND 4
@@ -11,12 +11,12 @@
 uint32_t pattern[] = {
     0x000000, // off
     0xff0000, // red
-    0xff2000, // orange
-    0xff9000, // yellow
     0x00ff00, // green
     0x0000ff, // blue
-    0x500050, // purple
     0xffffff  // white
+//    0xff2000, // orange
+//    0xff9000, // yellow
+//    0x500050, // purple
   };
 
 void setup() {
@@ -47,7 +47,7 @@ void setup() {
 void loop() {
   for (uint16_t i = 0; i < sizeof(pattern) / sizeof(long); i++) {
     setColor(pattern[i]);
-    delay(1000);
+    delay(2);
   }
 }
 

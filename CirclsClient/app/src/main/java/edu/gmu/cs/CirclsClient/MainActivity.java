@@ -24,8 +24,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void update(int id, String msg) {
-        display.append(msg + '\n');
-
+        try {
+            display.append(msg + '\n');
+        } catch (Exception e) {}
     }
 
     protected void getPermissions() {
