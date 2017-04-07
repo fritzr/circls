@@ -1,23 +1,35 @@
-#define RED   10
-#define GREEN 11
-#define BLUE  9
-//define ANODE
+#define RED   9
+#define GREEN 10
+#define BLUE  11
+//define ANODE 8
 #define CATHODE 8
 
 #define IR_OUT 3
 #define IR_GND 4
 #define IR_VCC 5
 
-uint32_t pattern[] = {
-    0x000000, // off
+uint32_t symbols[] = {
     0xff0000, // red
     0x00ff00, // green
     0x0000ff, // blue
-    0xffffff  // white
-//    0xff2000, // orange
-//    0xff9000, // yellow
-//    0x500050, // purple
+    0xffffff, // white
   };
+
+char message[] = "Hello world!";
+/*
+ * H  48  01 00 10 00  RBRG
+ * e  65  01 10 01 01  GGBG
+ * l  6c  01 10 11 00  RWBG
+ * l  6c  01 10 11 00  RWBG
+ * o  6f  01 10 11 11  WWBG
+ *    20  00 10 00 00  RRBR
+ * w  77  01 11 01 11  WGWG
+ * o  6f  01 10 11 11  WWBG
+ * r  72  01 11 00 10  BRWG
+ * l  6c  01 10 11 00  RWBG
+ * d  64  01 10 01 00  RGBG
+ * !  21  00 10 00 01  GRBR
+ */
 
 void setup() {
   #ifdef ANODE
@@ -40,14 +52,17 @@ void setup() {
   
   pinMode(IR_VCC, OUTPUT);
   digitalWrite(IR_VCC, HIGH);
-
-  Serial.begin(115200);
 }
 
 void loop() {
-  for (uint16_t i = 0; i < sizeof(pattern) / sizeof(long); i++) {
-    setColor(pattern[i]);
-    delay(2);
+  for (uint16_t i = 0; i < strlen(message); i++) {
+    for (uint8_t j = 0; j < 8; j += 2) {
+      uint8_t k = (message[i] >> j) & 0b11;
+      setColor(symbols[k]);
+      delayMicroseconds(500);
+      setColor(0);
+      delayMicroseconds(500);
+    }
   }
 }
 

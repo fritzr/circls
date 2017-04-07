@@ -82,13 +82,13 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
     }
 }
 
-// takes a flat frame of pixels, symbol storage, and the number of pixels
-// puts into symbol_buffer and updates last
+
+// takes symbol storage, a flat frame of pixels, and the number of pixels
 int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
 {
-    int j = 0; // symbol index
-    char p = '0';
+    int count = 0; // symbol index
     int width = 0; // current symbol width
+    char p = '0';  // last pixel
 
     // convert Lab numbers to 01RGBY representation
     for (int i = 0; i < pixels; i++)
@@ -113,9 +113,9 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         }
 
         // same as last pixel?
-        if (c != p || width > i/(j+1))
+        if (c != p || width > i/(count+1))
         {
-            symbols[j++] = p;
+            symbols[count++] = p;
             p = c;
             width = 0;
         } else {
@@ -123,35 +123,37 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         }
     }
 
-    return j;
+    ALOG("Number of Symbols: %d, Symbol width: %d", count, width);
+    return count;
 }
 
 
 // convert symbols into bits and return as bytes
 int demodulate(uint8_t data[], uint8_t symbols[], int len)
 {
-    int j = 3;     // data index
-    uint8_t k = 0;     // bit index
+    int j = 0;         // data index
+    int k = 0;         // bit index
 
     // preserve byte ordering
-    data[j] = 0;
+    uint32_t *words = (uint32_t *)data;
+    words[j] = 0;
 
     // process all symbols
     for (int i = 0; i < len; i++)
     {
-        uint8_t b = 0;
+        uint32_t b = 0;
         switch (symbols[i]) {
             case 'R':
-                b = 0x00;
+                b = 0b00;
                 break;
             case 'G':
-                b = 0x01;
+                b = 0b01;
                 break;
             case 'B':
-                b = 0x10;
+                b = 0b10;
                 break;
-            case 'Y':
-                b = 0x11;
+            case '1':
+                b = 0b11;
                 break;
             default:
                 // non-data symbol
@@ -159,28 +161,19 @@ int demodulate(uint8_t data[], uint8_t symbols[], int len)
         }
 
         // insert data symbol
-        data[j] |= b << k;
+        words[j] |= b << k;
 
         // update bit index
-        k = (k + 2) % 8;
+        k = (k + 2) % 32;
 
-        // start of a new byte
+        // start of a new word?
         if (k == 0) {
-            // determine next byte position
-            if (j % 4 == 0) {
-                j+= 7;
-            } else {
-                j--;
-            }
-            data[j] = 0;
+            words[++j] = 0;
         }
     }
 
-    // end of the last word
-    j+= 3;
-
     // number of bytes demodulated
-    return j;
+    return j * 4 + k / 8;
 }
 
 
@@ -238,22 +231,27 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     matLab.release();
 
     // detect symbols
+//    uint8_t symbols[] = "RBRGGGBGR1BGR1BG11BGRRBR1G1G11BGBR1GR1BGRGBGGRBR";
     uint8_t symbols[num_pixels];
+//    int num_symbols = sizeof(symbols);
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
     ALOG("%.*s", num_symbols, symbols);
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
-    int num_encoded = demodulate(&data[0], symbols, num_symbols);
+    int num_decoded = demodulate(data, symbols, num_symbols);
+
+    // decode RS
+//    int num_decoded = decode_rs(data, num_encoded);
 
     // return text
-    jcharArray message = env.NewCharArray(num_encoded);
+    jcharArray message = env.NewCharArray(num_decoded);
     if (message != NULL) {
-        jchar buf[num_encoded];
-        for (int i = 0; i < num_encoded; i++) {
+        jchar buf[num_decoded];
+        for (int i = 0; i < num_decoded; i++) {
             buf[i] = data[i];
         }
-        env.SetCharArrayRegion(message, 0, num_encoded, buf);
+        env.SetCharArrayRegion(message, 0, num_decoded, buf);
     }
 
     return message;
