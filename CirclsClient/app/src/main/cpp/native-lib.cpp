@@ -113,7 +113,7 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         }
 
         // same as last pixel?
-        if (c != p || width > i/(count+1))
+        if (c != p)
         {
             symbols[count++] = p;
             p = c;
@@ -131,15 +131,27 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
 // convert symbols into bits and return as bytes
 int demodulate(uint8_t data[], uint8_t symbols[], int len)
 {
+    int i = 0;         // symbol index
     int j = 0;         // data index
     int k = 0;         // bit index
 
-    // preserve byte ordering
+    // look for sync sequence
+    int sync = 0;
+    for (i = 0; i < len && sync < 3; i++)
+    {
+        if (symbols[i] == '1') {
+            sync++;
+        } else {
+            sync = 0;
+        }
+    }
+
+    // access data as words to preserve byte ordering
     uint32_t *words = (uint32_t *)data;
     words[j] = 0;
 
-    // process all symbols
-    for (int i = 0; i < len; i++)
+    // process remaining symbols
+    for (; i < len; i++)
     {
         uint32_t b = 0;
         switch (symbols[i]) {
@@ -152,7 +164,7 @@ int demodulate(uint8_t data[], uint8_t symbols[], int len)
             case 'B':
                 b = 0b10;
                 break;
-            case '1':
+            case 'Y':
                 b = 0b11;
                 break;
             default:
@@ -221,28 +233,31 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
                                                                            Mat &matRGB) {
     int num_pixels = matRGB.rows;
 
-    // flatten frame in Lab color-space
+    // convert frame to Lab color-space
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
 
-    // flatten frame in Lab color-space
+    // flatten frame
     int32_t frame[num_pixels][3];
     flattenCols(matLab, frame);
     matLab.release();
 
     // detect symbols
-//    uint8_t symbols[] = "RBRGGGBGR1BGR1BG11BGRRBR1G1G11BGBR1GR1BGRGBGGRBR";
+//    uint8_t symbols[] = "RBRGGGBGRYBGRYBGYYBGRRBRYGYGYYBGBRYGRYBGRGBGGRBR";
     uint8_t symbols[num_pixels];
 //    int num_symbols = sizeof(symbols);
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
-    ALOG("%.*s", num_symbols, symbols);
+    ALOG("Symbols: %.*s", num_symbols, symbols);
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
     int num_decoded = demodulate(data, symbols, num_symbols);
+//    ALOG("Number of RS Bytes: %d, Sync: %d", num_decoded, sync);
+
 
     // decode RS
 //    int num_decoded = decode_rs(data, num_encoded);
+//    ALOG("Number of Bytes: %d, Sync: %d", num_decoded, sync);
 
     // return text
     jcharArray message = env.NewCharArray(num_decoded);
