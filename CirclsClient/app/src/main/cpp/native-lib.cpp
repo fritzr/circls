@@ -2,6 +2,7 @@
 #include <android/log.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <sstream>
 extern "C"
 {
     #include "rscode-1.3/ecc.h"
@@ -84,11 +85,11 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
 
 
 // takes symbol storage, a flat frame of pixels, and the number of pixels
-int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
+int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
 {
-    int count = 0; // symbol index
-    int width = 0; // current symbol width
-    char p = '0';  // last pixel
+    int count = 0;          // symbol index
+    int width = 0;
+    char p = '1';           // previous symbol
 
     // convert Lab numbers to 01RGBY representation
     for (int i = 0; i < pixels; i++)
@@ -99,9 +100,9 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         char c;
 
         // +L = white, +a = red; -a = green; -b = blue; +b = yellow;
-        if (a == b)
+        if (L < 15)
         {
-            c = (L < 10) ? '0' : '1';
+            c = '0';
         }
         else if (abs(a) > abs(b))
         {
@@ -115,34 +116,39 @@ int detectSymbols( uint8_t symbols[], int32_t frame[][3], int pixels )
         // same as last pixel?
         if (c != p)
         {
-            symbols[count++] = p;
+            // store previous symbol
+            symbols[count][0] = p;
+            symbols[count][1] = width;
+            count++;
+
+            // start tracking new symbol
             p = c;
-            width = 0;
+            width = 1;
         } else {
             width++;
         }
     }
 
-    ALOG("Number of Symbols: %d, Symbol width: %d", count, width);
     return count;
 }
 
 
 // convert symbols into bits and return as bytes
-int demodulate(uint8_t data[], uint8_t symbols[], int len)
+int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
 {
-    int i = 0;         // symbol index
+    std::stringstream ss;
+    int i = 6;         // symbol index
     int j = 0;         // data index
     int k = 0;         // bit index
+    int width;
 
     // look for sync sequence
-    int sync = 0;
-    for (i = 0; i < len && sync < 3; i++)
+    for (; i < len; i++)
     {
-        if (symbols[i] == '1') {
-            sync++;
-        } else {
-            sync = 0;
+        if (symbols[i][0] == '0' && symbols[i - 2][0] == '0' && symbols[i - 4][0] == '0' && symbols[i - 6][0] == '0' ) {
+            width = (symbols[i][1] + symbols[i - 2][1] + symbols[i - 4][1] + symbols[i - 6][1]) / 4;
+            ALOG("Symbol Width: %d", width);
+            break;
         }
     }
 
@@ -151,10 +157,10 @@ int demodulate(uint8_t data[], uint8_t symbols[], int len)
     words[j] = 0;
 
     // process remaining symbols
-    for (; i < len; i++)
+    while (i < len)
     {
         uint32_t b = 0;
-        switch (symbols[i]) {
+        switch (symbols[i][0]) {
             case 'R':
                 b = 0b00;
                 break;
@@ -169,20 +175,33 @@ int demodulate(uint8_t data[], uint8_t symbols[], int len)
                 break;
             default:
                 // non-data symbol
+                i++;
                 continue;
         }
 
-        // insert data symbol
-        words[j] |= b << k;
+        if (symbols[i][1] >= width) {
+            // debugging
+            ss << (char) symbols[i][0];
 
-        // update bit index
-        k = (k + 2) % 32;
+            // insert data symbol
+            words[j] |= b << k;
 
-        // start of a new word?
-        if (k == 0) {
-            words[++j] = 0;
+            // update bit index
+            k = (k + 2) % 32;
+
+            // start of a new word?
+            if (k == 0) {
+                words[++j] = 0;
+            }
+
+            symbols[i][1] -= width;
+        } else {
+            // ignore symbols that are too small
+            i++;
         }
     }
+
+    ALOG("Used symbols: %s", ss.str().c_str());
 
     // number of bytes demodulated
     return j * 4 + k / 8;
@@ -242,17 +261,24 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     flattenCols(matLab, frame);
     matLab.release();
 
+    std::stringstream ss;
+    for (int i = 0; i < num_pixels; i++) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
+    ALOG("Frame: %s", ss.str().c_str());
+
     // detect symbols
-//    uint8_t symbols[] = "RBRGGGBGRYBGRYBGYYBGRRBRYGYGYYBGBRYGRYBGRGBGGRBR";
-    uint8_t symbols[num_pixels];
+//    uint8_t symbols[] = "0101010RBRGGGBGRYBGRYBGYYBGRRBRYGYGYYBGBRYGRYBGRGBGGRBR";
 //    int num_symbols = sizeof(symbols);
+    uint8_t symbols[num_pixels][2];
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
-    ALOG("Symbols: %.*s", num_symbols, symbols);
+
+    ss.str("");
+    for (int i = 0; i < num_symbols; i++) ss << (char) symbols[i][0];
+    ALOG("Symbols: %s", ss.str().c_str());
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
     int num_decoded = demodulate(data, symbols, num_symbols);
-//    ALOG("Number of RS Bytes: %d, Sync: %d", num_decoded, sync);
+    ALOG("Number of RS Bytes: %d, Message: %.*s", num_decoded, num_decoded, data);
 
 
     // decode RS
