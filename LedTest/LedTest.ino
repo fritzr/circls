@@ -15,11 +15,11 @@
 
 #define WIDTH 500
 
-uint32_t symbols[] = {
-    0xff0000, // red
-    0x00ff00, // green
-    0x0000ff, // blue
-    0xffff00, // yellow
+uint8_t symbols[] = {
+    0b0010, // red
+    0b0100, // green
+    0b1000, // blue
+    0b0110, // yellow
   };
 
 char message[] = "Hello world!";
@@ -64,23 +64,25 @@ void setup() {
 void loop() {
   // send 4 white/off symbols for synchronization
   for (uint8_t i = 0; i < 4; i++) {
-    setColor(-1);
+    PORTB = symbols[i];
     delayMicroseconds(WIDTH);
-    setColor(0);
-    delayMicroseconds(WIDTH);
+    PORTB = 0b0000;
+    delayMicroseconds(WIDTH*2);
   }
 
   // message
   for (uint16_t i = 0; i < strlen(message); i++) {
     for (uint8_t j = 0; j < 8; j += 2) {
       uint8_t k = (message[i] >> j) & 0b11;
-      setColor(symbols[k]);
+      PORTB = symbols[k];
       delayMicroseconds(WIDTH);
+      PORTB = 0b0000;
+      delayMicroseconds(WIDTH*2);
     }
   }
 }
 
-void setColor(uint32_t rgb) {
+void setColor(uint8_t rgb) {
   #ifdef ANODE
     rgb = ~rgb;
   #endif
