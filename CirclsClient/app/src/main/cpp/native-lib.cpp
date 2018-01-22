@@ -8,8 +8,8 @@ extern "C"
     #include "rscode-1.3/ecc.h"
 }
 
-#define  LOG_TAG    "native-lib"
-#define  ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+#define LOG_TAG    "native-lib"
+#define ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
 using namespace std;
 using namespace cv;
@@ -100,7 +100,8 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
         char c;
 
         // +L = white, +a = red; -a = green; -b = blue; +b = yellow;
-        if (L < 15)
+
+        if (L < 10)
         {
             c = '0';
         }
@@ -145,7 +146,7 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
     // look for sync sequence
     for (; i < len; i++)
     {
-        if (symbols[i][0] == '0' && symbols[i - 2][0] == '0' && symbols[i - 4][0] == '0' && symbols[i - 6][0] == '0' ) {
+        if (symbols[i][0] == 'R' && symbols[i - 2][0] == 'G' && symbols[i - 4][0] == 'B' && symbols[i - 6][0] == 'Y' ) {
             width = (symbols[i][1] + symbols[i - 2][1] + symbols[i - 4][1] + symbols[i - 6][1]) / 4;
             ALOG("Symbol Width: %d", width);
             break;
@@ -179,7 +180,7 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
                 continue;
         }
 
-        if (symbols[i][1] >= width) {
+//        if (symbols[i][1] >= width) {
             // debugging
             ss << (char) symbols[i][0];
 
@@ -195,10 +196,10 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
             }
 
             symbols[i][1] -= width;
-        } else {
+//        } else {
             // ignore symbols that are too small
             i++;
-        }
+//        }
     }
 
     ALOG("Used symbols: %s", ss.str().c_str());
