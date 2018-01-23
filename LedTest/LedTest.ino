@@ -14,8 +14,12 @@ uint8_t symbols[] = {
     0b0110, // yellow
   };
 
-uint8_t message[16] = "Hello world!";
+char packet[] =
+    "\x0"          // length
+    "Hello world!" // message
+    "\x0\x0\x0";   // parity
 /*
+ *    10  00 01 00 00  RRGR
  * H  48  01 00 10 00  RBRG
  * e  65  01 10 01 01  GGBG
  * l  6c  01 10 11 00  RYBG
@@ -28,6 +32,10 @@ uint8_t message[16] = "Hello world!";
  * l  6c  01 10 11 00  RYBG
  * d  64  01 10 01 00  RGBG
  * !  21  00 10 00 01  GRBR
+ *    dc  11 01 11 00  RYGY
+ *    83  10 00 00 11  YRRB
+ *    d5  11 01 01 01  GGGY
+ *    c3  11 00 00 11  YRRY
  */
 
 void encode_rs (uint8_t *__restrict outbuf, uint8_t *inbuf, size_t insize)
@@ -65,7 +73,11 @@ void setup() {
   // configure output pins
   DDRB |= 0b1110;
 
-  encode_rs(message, message, strlen(message));
+  // set packet length
+  packet[0] = strlen(packet + 1) + NPAR;
+
+  // calculate parity
+  encode_rs((uint8_t *) &packet[1], (uint8_t *) &packet[1], strlen(packet + 1));
 }
 
 void loop() {
@@ -78,9 +90,9 @@ void loop() {
   }
 
   // send message
-  for (uint16_t i = 0; i < sizeof(message); i++) {
+  for (uint16_t i = 0; i < sizeof(packet); i++) {
     for (uint8_t j = 0; j < 8; j += 2) {
-      uint8_t k = (message[i] >> j) & 0b11;
+      uint8_t k = (packet[i] >> j) & 0b11;
       PORTB = symbols[k];
       delayMicroseconds(WIDTH);
       PORTB = 0b0000;
