@@ -1,28 +1,20 @@
-#define RED   9
-#define GREEN 10
-#define BLUE  11
+#include <avr/power.h>
+extern "C"
+{
+    #include "ecc.h"
+}
 
-//define BLUE  9
-//define RED   10
-//define GREEN 11
+#define WIDTH 400
 
-#define CATHODE 8
-//define ANODE 8
-
-#define IR_OUT 3
-#define IR_GND 4
-#define IR_VCC 5
-
-#define WIDTH 500
-
+// common cathode values
 uint8_t symbols[] = {
-    0b0010, // red
-    0b0100, // green
-    0b1000, // blue
+    0b0010, // red   (PIN 9)
+    0b0100, // green (PIN 10)
+    0b1000, // blue  (PIN 11)
     0b0110, // yellow
   };
 
-char message[] = "Hello world!";
+uint8_t message[16] = "Hello world!";
 /*
  * H  48  01 00 10 00  RBRG
  * e  65  01 10 01 01  GGBG
@@ -38,40 +30,55 @@ char message[] = "Hello world!";
  * !  21  00 10 00 01  GRBR
  */
 
+void encode_rs (uint8_t *__restrict outbuf, uint8_t *inbuf, size_t insize)
+{
+  initialize_ecc ();
+
+  size_t in_idx = 0;
+  size_t out_idx = 0;
+  size_t left = insize;
+
+  /* Encode data in 255-byte chunks, where NPAR of the bytes are for parity.  */
+  while (left > 0)
+  {
+    size_t in_chunk = 255 - NPAR;
+    if (left < in_chunk)
+      in_chunk = left;
+
+    encode_data (inbuf + in_idx, in_chunk, outbuf + out_idx);
+
+    in_idx += in_chunk;
+    out_idx += in_chunk + NPAR;
+    left -= in_chunk;
+  }
+}
+
 void setup() {
-  #ifdef ANODE
-    pinMode(ANODE, OUTPUT);
-    digitalWrite(ANODE, HIGH);
-  #else
-    pinMode(CATHODE, OUTPUT);
-    digitalWrite(CATHODE, LOW);
-  #endif
+  // shutdown everything unnecessary
+  power_adc_disable();
+  power_twi_disable();
+  power_usart0_disable();
+  power_timer0_disable();
+  power_timer1_disable();
+  power_timer2_disable();
 
-  pinMode(RED, OUTPUT);
-  pinMode(GREEN, OUTPUT);
-  pinMode(BLUE, OUTPUT);
+  // configure output pins
+  DDRB |= 0b1110;
 
-  pinMode(IR_OUT, INPUT);
-  attachInterrupt(digitalPinToInterrupt(IR_OUT), irReceive, RISING);
-  
-  pinMode(IR_GND, OUTPUT);
-  digitalWrite(IR_GND, LOW);
-  
-  pinMode(IR_VCC, OUTPUT);
-  digitalWrite(IR_VCC, HIGH);
+  encode_rs(message, message, strlen(message));
 }
 
 void loop() {
-  // send 4 white/off symbols for synchronization
+  // send on/off symbols for synchronization
   for (uint8_t i = 0; i < 4; i++) {
-    PORTB = symbols[i];
+    PORTB = symbols[3];
     delayMicroseconds(WIDTH);
     PORTB = 0b0000;
     delayMicroseconds(WIDTH*2);
   }
 
-  // message
-  for (uint16_t i = 0; i < strlen(message); i++) {
+  // send message
+  for (uint16_t i = 0; i < sizeof(message); i++) {
     for (uint8_t j = 0; j < 8; j += 2) {
       uint8_t k = (message[i] >> j) & 0b11;
       PORTB = symbols[k];
@@ -80,19 +87,5 @@ void loop() {
       delayMicroseconds(WIDTH*2);
     }
   }
-}
-
-void setColor(uint8_t rgb) {
-  #ifdef ANODE
-    rgb = ~rgb;
-  #endif
-
-  analogWrite(RED, rgb >> 16);
-  analogWrite(GREEN, rgb >> 8);
-  analogWrite(BLUE, rgb);
-}
-
-void irReceive() {
-  UDR0 = '.';
 }
 
