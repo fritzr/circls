@@ -138,7 +138,7 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
 int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
 {
     std::stringstream ss;
-    int i = 6;         // symbol index
+    int i = 7;         // symbol index
     int j = 0;         // data index
     int k = 0;         // bit index
     int width;
@@ -146,8 +146,8 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
     // look for sync sequence
     for (; i < len; i++)
     {
-        if (symbols[i][0] == 'R' && symbols[i - 2][0] == 'G' && symbols[i - 4][0] == 'B' && symbols[i - 6][0] == 'Y' ) {
-            width = (symbols[i][1] + symbols[i - 2][1] + symbols[i - 4][1] + symbols[i - 6][1]) / 4;
+        if (symbols[i - 7][0] == 'Y' && symbols[i - 5][0] == 'Y' && symbols[i - 3][0] == 'Y' && symbols[i - 1][0] == 'Y') {
+            width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) / 4;
             ALOG("Symbol Width: %d", width);
             break;
         }
@@ -278,22 +278,20 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
 
     // demodulate
     uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
-    int num_decoded = demodulate(data, symbols, num_symbols);
-    ALOG("Number of RS Bytes: %d, Message: %.*s", num_decoded, num_decoded, data);
-
+    int num_encoded = demodulate(data, symbols, num_symbols);
 
     // decode RS
-//    int num_decoded = decode_rs(data, num_encoded);
-//    ALOG("Number of Bytes: %d, Sync: %d", num_decoded, sync);
+    int num_decoded = decode_rs(data, num_encoded);
+    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, num_encoded, data);
 
     // return text
-    jcharArray message = env.NewCharArray(num_decoded);
+    jcharArray message = env.NewCharArray(num_encoded);
     if (message != NULL) {
-        jchar buf[num_decoded];
-        for (int i = 0; i < num_decoded; i++) {
+        jchar buf[num_encoded];
+        for (int i = 0; i < num_encoded; i++) {
             buf[i] = data[i];
         }
-        env.SetCharArrayRegion(message, 0, num_decoded, buf);
+        env.SetCharArrayRegion(message, 0, num_encoded, buf);
     }
 
     return message;
