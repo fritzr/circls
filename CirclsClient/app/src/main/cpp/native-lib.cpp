@@ -101,17 +101,16 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
 
         // +L = white, +a = red; -a = green; -b = blue; +b = yellow;
 
-        if (L < 10)
-        {
-            c = '0';
+        if (abs(a) < 15 && abs(b) < 15) {
+            c = (L < 15) ? '0' : '1';
         }
-        else if (abs(a) > abs(b))
+        if (abs(a) > abs(b))
         {
-            c = (a < 0) ? 'G' : 'R';
+            c = (L < 15) ? '0' : (a < 0) ? 'G' : 'R';
         }
         else
         {
-            c = (b < 0) ? 'B' : 'Y';
+            c = (L < 15) ? '0' : (b < 0) ? 'B' : 'Y';
         }
 
         // same as last pixel?
@@ -146,8 +145,8 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
     // look for sync sequence
     for (; i < len; i++)
     {
-        if (symbols[i - 7][0] == 'Y' && symbols[i - 5][0] == 'Y' && symbols[i - 3][0] == 'Y' && symbols[i - 1][0] == 'Y') {
-            width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) / 4;
+        if (symbols[i - 7][0] == 'Y' && symbols[i - 6][0] == '0' && symbols[i - 5][0] == 'Y' && symbols[i - 4][0] == '0' && symbols[i - 3][0] == 'Y' && symbols[i - 2][0] == '0' && symbols[i - 1][0] == 'Y' && symbols[i][0] == '0') {
+            width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) * 3 / 16;
             ALOG("Symbol Width: %d", width);
             break;
         }
@@ -180,7 +179,7 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
                 continue;
         }
 
-//        if (symbols[i][1] >= width) {
+        if (symbols[i][1] >= width) {
             // debugging
             ss << (char) symbols[i][0];
 
@@ -196,10 +195,10 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
             }
 
             symbols[i][1] -= width;
-//        } else {
+        } else {
             // ignore symbols that are too small
             i++;
-//        }
+        }
     }
 
     ALOG("Used symbols: %s", ss.str().c_str());
@@ -267,8 +266,6 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     ALOG("Frame: %s", ss.str().c_str());
 
     // detect symbols
-//    uint8_t symbols[] = "0101010RBRGGGBGRYBGRYBGYYBGRRBRYGYGYYBGBRYGRYBGRGBGGRBR";
-//    int num_symbols = sizeof(symbols);
     uint8_t symbols[num_pixels][2];
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
 
@@ -277,12 +274,12 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     ALOG("Symbols: %s", ss.str().c_str());
 
     // demodulate
-    uint8_t data[(num_symbols / 4) + 1]; // upper bound # bytes
+    uint8_t data[256]; // upper bound # bytes
     int num_encoded = demodulate(data, symbols, num_symbols);
 
     // decode RS
-    int num_decoded = decode_rs(data, num_encoded);
-    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, num_encoded, data);
+    int num_decoded = decode_rs((data + 1), data[0]);
+    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, num_encoded, (data + 1));
 
     // return text
     jcharArray message = env.NewCharArray(num_encoded);
