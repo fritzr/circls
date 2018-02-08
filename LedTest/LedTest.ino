@@ -4,7 +4,7 @@ extern "C"
     #include "ecc.h"
 }
 
-#define WIDTH 400
+#define WIDTH 200
 
 // common cathode values
 uint8_t symbols[] = {
@@ -83,7 +83,7 @@ void setup() {
 void loop() {
   // send on/off symbols for synchronization
   for (uint8_t i = 0; i < 4; i++) {
-    PORTB = symbols[3];
+    PORTB = 0b0110;
     delayMicroseconds(WIDTH);
     PORTB = 0b0000;
     delayMicroseconds(WIDTH*2);
@@ -96,7 +96,7 @@ void loop() {
       PORTB = symbols[k];
       delayMicroseconds(WIDTH);
       PORTB = 0b0000;
-      delayMicroseconds(WIDTH*2);
+      delayMicroseconds(WIDTH);
     }
   }
 }
