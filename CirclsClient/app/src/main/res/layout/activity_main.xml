@@ -20,7 +20,7 @@
         android:gravity="bottom"
         android:padding="@dimen/console_padding"
         android:typeface="monospace"
-        android:rotation = "180"
+        android:rotation = "0"
         android:textSize="@dimen/console_text_size"
         android:textColor="@color/console_text"
         android:scrollbarAlwaysDrawVerticalTrack="true"
