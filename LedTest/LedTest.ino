@@ -32,10 +32,10 @@ char packet[] =
  * l  6c  01 10 11 00  RYBG
  * d  64  01 10 01 00  RGBG
  * !  21  00 10 00 01  GRBR
- *    dc  11 01 11 00  RYGY
- *    83  10 00 00 11  YRRB
- *    d5  11 01 01 01  GGGY
- *    c3  11 00 00 11  YRRY
+ *    38  00 11 10 00  RBYR
+ *    9d  10 01 11 01  GYGB
+ *    04  00 00 01 00  RGRR
+ *    1c  00 01 11 00  RYGR
  */
 
 void encode_rs (uint8_t *__restrict outbuf, uint8_t *inbuf, size_t insize)
@@ -74,10 +74,12 @@ void setup() {
   DDRB |= 0b1110;
 
   // set packet length
-  packet[0] = strlen(packet + 1) + NPAR;
+  size_t len = strlen(packet + 1);
+  packet[0] = len + NPAR;
 
   // calculate parity
-  encode_rs((uint8_t *) &packet[1], (uint8_t *) &packet[1], strlen(packet + 1));
+  initialize_ecc ();
+  encode_data((packet + 1), len, (packet + 1));
 }
 
 void loop() {
