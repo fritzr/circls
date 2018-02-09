@@ -14,11 +14,20 @@ extern "C"
 using namespace std;
 using namespace cv;
 
-// reference to message receiver
-static jmethodID midStr = NULL;
 
-// hold symbols captured across multiple frames
-jint id = 0;
+jint JNI_OnLoad(JavaVM* vm, void* reserved)
+{
+    JNIEnv* env;
+    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
+        return -1;
+    }
+
+    // setup RS
+    initialize_ecc();
+
+    return JNI_VERSION_1_6;
+}
+
 
 // takes an OpenCV Matrix of 3D pixels
 // returns a single averaged column of 3D pixels
@@ -279,7 +288,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
 
     // decode RS
     int num_decoded = decode_rs((data + 1), data[0]);
-    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, num_encoded, (data + 1));
+    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, data[0], (data + 1));
 
     // return text
     jcharArray message = env.NewCharArray(num_encoded);
