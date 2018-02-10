@@ -38,29 +38,6 @@ char packet[] =
  *    1c  00 01 11 00  RYGR
  */
 
-void encode_rs (uint8_t *__restrict outbuf, uint8_t *inbuf, size_t insize)
-{
-  initialize_ecc ();
-
-  size_t in_idx = 0;
-  size_t out_idx = 0;
-  size_t left = insize;
-
-  /* Encode data in 255-byte chunks, where NPAR of the bytes are for parity.  */
-  while (left > 0)
-  {
-    size_t in_chunk = 255 - NPAR;
-    if (left < in_chunk)
-      in_chunk = left;
-
-    encode_data (inbuf + in_idx, in_chunk, outbuf + out_idx);
-
-    in_idx += in_chunk;
-    out_idx += in_chunk + NPAR;
-    left -= in_chunk;
-  }
-}
-
 void setup() {
   // shutdown everything unnecessary
   power_adc_disable();
