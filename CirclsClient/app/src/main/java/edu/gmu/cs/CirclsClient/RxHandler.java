@@ -56,6 +56,7 @@ public class RxHandler implements CameraBridgeViewBase.CvCameraViewListener2 {
     public void setup(View view, MessageHandler display) {
         // setup display
         mCameraView = (CameraBridgeViewBase) view;
+        mCameraView.setMaxFrameSize(1920, 1080);
         mCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
         mCameraView.setCvCameraViewListener(this);
         mCameraView.enableFpsMeter();
