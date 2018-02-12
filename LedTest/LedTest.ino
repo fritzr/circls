@@ -39,14 +39,6 @@ char packet[] =
  */
 
 void setup() {
-  // shutdown everything unnecessary
-  power_adc_disable();
-  power_twi_disable();
-  power_usart0_disable();
-  power_timer0_disable();
-  power_timer1_disable();
-  power_timer2_disable();
-
   // configure output pins
   DDRB |= 0b1110;
 
@@ -57,6 +49,21 @@ void setup() {
   // calculate parity
   initialize_ecc ();
   encode_data((packet + 1), len, (packet + 1));
+
+  Serial.begin(115200);
+  for (int i = 0; i < sizeof(packet); i++) {
+    Serial.print(packet[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.end();
+
+  // shutdown everything unnecessary
+  power_adc_disable();
+  power_twi_disable();
+  power_usart0_disable();
+  power_timer0_disable();
+  power_timer1_disable();
+  power_timer2_disable();
 }
 
 void loop() {
