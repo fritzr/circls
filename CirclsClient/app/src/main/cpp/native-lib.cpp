@@ -284,11 +284,12 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
 
     // demodulate
     uint8_t data[256]; // upper bound # bytes
-    int num_encoded = demodulate(data, symbols, num_symbols);
+    int num_demodulated = demodulate(data, symbols, num_symbols);
+    int num_encoded = data[0];
 
     // decode RS
-    int num_decoded = decode_rs((data + 1), data[0]);
-    ALOG("Encoded: %d, Decoded: %d, Message: %.*s", num_encoded, num_decoded, data[0], (data + 1));
+    int num_decoded = decode_rs((data + 1), num_encoded);
+    ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Message: %.*s %x %x %x %x", num_demodulated, num_encoded, num_decoded, num_encoded - NPAR, (data + 1), data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
 
     // return text
     jcharArray message = env.NewCharArray(num_encoded);
