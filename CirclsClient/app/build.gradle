@@ -54,6 +54,6 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.4.0'
     compile 'com.android.support:design:23.4.0'
     compile project(':infrared')
-    compile project(path: ':openCVLibrary310')
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+    implementation project(':openCVLibrary340')
 }
