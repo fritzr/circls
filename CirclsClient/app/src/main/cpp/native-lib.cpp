@@ -252,7 +252,7 @@ int decode_rs (uint8_t *encoded, size_t length)
         i++;
     }
 
-    return check_pass ? out_index : -1;
+    return check_pass ? out_index : 0;
 }
 
 
@@ -292,13 +292,13 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Message: %.*s %x %x %x %x", num_demodulated, num_encoded, num_decoded, num_encoded - NPAR, (data + 1), data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
 
     // return text
-    jcharArray message = env.NewCharArray(num_encoded);
+    jcharArray message = env.NewCharArray(num_decoded);
     if (message != NULL) {
-        jchar buf[num_encoded];
-        for (int i = 0; i < num_encoded; i++) {
-            buf[i] = data[i];
+        jchar buf[num_decoded];
+        for (int i = 0; i < num_decoded; i++) {
+            buf[i] = data[i + 1];
         }
-        env.SetCharArrayRegion(message, 0, num_encoded, buf);
+        env.SetCharArrayRegion(message, 0, num_decoded, buf);
     }
 
     return message;
