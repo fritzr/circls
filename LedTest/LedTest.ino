@@ -51,6 +51,7 @@ void setup() {
   encode_data((packet + 1), len, (packet + 1));
 
   Serial.begin(115200);
+  Serial.println(len);
   for (int i = 0; i < sizeof(packet); i++) {
     Serial.print(packet[i], HEX);
     Serial.print(' ');
