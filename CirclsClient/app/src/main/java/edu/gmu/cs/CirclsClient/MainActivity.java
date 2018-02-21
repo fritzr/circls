@@ -23,10 +23,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TxHandler tx = new TxHandler();
 
     @Override
-    public void update(int id, String msg) {
-        try {
-            display.append(msg + '\n');
-        } catch (Exception e) {}
+    public void update(int id, final String msg) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                display.append(msg + '\n');
+            }
+        });
     }
 
     protected void getPermissions() {
