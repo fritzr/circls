@@ -1,7 +1,9 @@
 #include <jni.h>
 #include <android/log.h>
+#include <GLES2/gl2.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <iomanip>
 #include <sstream>
 extern "C"
 {
@@ -101,7 +103,7 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
     char p = '1';           // previous symbol
 
     // convert Lab numbers to 01RGBY representation
-    for (int i = 0; i < pixels; i++)
+    for (int i = pixels - 1; i >= 0; i--)
     {
         int L = frame[i][0];
         int a = frame[i][1];
@@ -252,18 +254,23 @@ int decode_rs (uint8_t *encoded, size_t length)
         i++;
     }
 
-    return check_pass ? out_index : -1;
+    return check_pass ? out_index : 0;
 }
 
 
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
-                                                                           Mat &matRGB) {
-    int num_pixels = matRGB.rows;
+                                                                           jint width, jint height) {
+    int num_pixels = height;
+
+    // copy flipped RGBA frame into matrix
+    Mat matRGB(height, width, CV_8UC4);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, matRGB.data);
 
     // convert frame to Lab color-space
     Mat matLab;
     cvtColor(matRGB, matLab, CV_RGB2Lab);
+    matRGB.release();
 
     // flatten frame
     int32_t frame[num_pixels][3];
@@ -279,8 +286,11 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     int num_symbols = detectSymbols(symbols, frame, num_pixels);
 
     ss.str("");
-    for (int i = 0; i < num_symbols; i++) ss << (char) symbols[i][0];
+    for (int i = 0; i < num_symbols; i++) ss << setw(3) << (char) symbols[i][0];
     ALOG("Symbols: %s", ss.str().c_str());
+    ss.str("");
+    for (int i = 0; i < num_symbols; i++) ss << setw(3) << (int) symbols[i][1];
+    ALOG("Widths : %s", ss.str().c_str());
 
     // demodulate
     uint8_t data[256]; // upper bound # bytes
@@ -292,13 +302,13 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Message: %.*s %x %x %x %x", num_demodulated, num_encoded, num_decoded, num_encoded - NPAR, (data + 1), data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
 
     // return text
-    jcharArray message = env.NewCharArray(num_encoded);
+    jcharArray message = env.NewCharArray(num_decoded);
     if (message != NULL) {
-        jchar buf[num_encoded];
-        for (int i = 0; i < num_encoded; i++) {
-            buf[i] = data[i];
+        jchar buf[num_decoded];
+        for (int i = 0; i < num_decoded; i++) {
+            buf[i] = data[i + 1];
         }
-        env.SetCharArrayRegion(message, 0, num_encoded, buf);
+        env.SetCharArrayRegion(message, 0, num_decoded, buf);
     }
 
     return message;

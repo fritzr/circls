@@ -70,6 +70,9 @@ target_link_libraries( # Specifies the target library.
 
                        # OpenCV libraries
                        ${OpenCvDir}/libs/${CMAKE_ANDROID_ARCH_ABI}/libopencv_java3.so
+
+                       # OpenGL
+                       GLESv2
                        )
 
 
