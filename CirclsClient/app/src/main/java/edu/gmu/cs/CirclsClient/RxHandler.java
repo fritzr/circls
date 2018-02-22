@@ -32,6 +32,7 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
                 switch (status) {
                     case LoaderCallbackInterface.SUCCESS:
                         Log.d(TAG, "OpenCV loaded successfully");
+                        mView.enableView();
                         break;
                     default:
                         super.onManagerConnected(status);
@@ -46,7 +47,6 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     public void start() {
         if (OpenCVLoader.initDebug()) {
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-            mView.enableView();
         }
     }
 
@@ -67,7 +67,7 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     public boolean onCameraTexture(int texIn, int texOut, int width, int height) {
         char[] data = FrameProcessor(width, height);
         if (data.length > 0) {
-            mDisplay.update(data[0], String.valueOf(data));
+            mDisplay.update(data.length, String.valueOf(data));
         }
 
         // output isn't modified

@@ -4,7 +4,7 @@ extern "C"
     #include "ecc.h"
 }
 
-#define WIDTH 200
+#define WIDTH 150
 
 // common cathode values
 uint8_t symbols[] = {
@@ -73,7 +73,7 @@ void loop() {
     PORTB = 0b0110;
     delayMicroseconds(WIDTH);
     PORTB = 0b0000;
-    delayMicroseconds(WIDTH*2);
+    delayMicroseconds(WIDTH*3);
   }
 
   // send message
