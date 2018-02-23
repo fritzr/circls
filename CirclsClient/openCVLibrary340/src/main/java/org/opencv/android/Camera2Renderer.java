@@ -274,8 +274,8 @@ public class Camera2Renderer extends CameraGLRendererBase {
     @Override
     protected void setCameraPreviewSize(int width, int height) {
         Log.i(LOGTAG, "setCameraPreviewSize("+width+"x"+height+")");
-        if(mMaxCameraWidth  > 0 && mMaxCameraWidth  < width)  width  = mMaxCameraWidth;
-        if(mMaxCameraHeight > 0 && mMaxCameraHeight < height) height = mMaxCameraHeight;
+        if(mMaxCameraWidth  > 0)  width  = mMaxCameraWidth;
+        if(mMaxCameraHeight > 0) height = mMaxCameraHeight;
         try {
             mCameraOpenCloseLock.acquire();
 

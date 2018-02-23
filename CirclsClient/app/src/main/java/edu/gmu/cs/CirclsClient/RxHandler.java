@@ -23,6 +23,7 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     public void setup(View view, MessageHandler display) {
         // setup display
         mView = (CameraGLSurfaceView) view;
+        mView.setMaxCameraPreviewSize(960, 720);
         mView.setCameraTextureListener(this);
 
         // setup callback for OpenCV loader
