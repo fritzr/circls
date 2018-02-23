@@ -25,8 +25,10 @@ public abstract class CameraGLRendererBase implements GLSurfaceView.Renderer, Su
     // shaders
     private final String vss = ""
             + "attribute vec2 vPosition;\n"
-            + "attribute vec2 vTexCoord;\n" + "varying vec2 texCoord;\n"
-            + "void main() {\n" + "  texCoord = vTexCoord;\n"
+            + "attribute vec2 vTexCoord;\n"
+            + "varying vec2 texCoord;\n"
+            + "void main() {\n"
+            + "  texCoord = vTexCoord;\n"
             + "  gl_Position = vec4 ( vPosition.x, vPosition.y, 0.0, 1.0 );\n"
             + "}";
 
@@ -52,10 +54,10 @@ public abstract class CameraGLRendererBase implements GLSurfaceView.Renderer, Su
             1, -1,
             1,  1 };
     private final float texCoordOES[] = {
-            0,  1,
-            0,  0,
             1,  1,
-            1,  0 };
+            0,  1,
+            1,  0,
+            0,  0 };
     private final float texCoord2D[] = {
             0,  0,
             0,  1,
