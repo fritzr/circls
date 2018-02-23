@@ -1,6 +1,5 @@
 #include <jni.h>
 #include <android/log.h>
-#include <GLES2/gl2.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iomanip>
@@ -260,12 +259,12 @@ int decode_rs (uint8_t *encoded, size_t length)
 
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
-                                                                           jint width, jint height) {
+                                                                           jint width, jint height, jobject pixels) {
     int num_pixels = height;
 
     // copy flipped RGBA frame into matrix
     Mat matRGB(height, width, CV_8UC4);
-    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, matRGB.data);
+    memcpy(matRGB.data, env.GetDirectBufferAddress(pixels), width * height * 4);
 
     // convert frame to Lab color-space
     Mat matLab;
