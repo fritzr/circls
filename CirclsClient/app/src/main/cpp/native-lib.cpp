@@ -260,7 +260,7 @@ int decode_rs (uint8_t *encoded, size_t length)
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
-    int num_pixels = height;
+    int num_pixels = width;
 
     // copy flipped RGBA frame into matrix
     Mat matRGB(height, width, CV_8UC4);
@@ -273,7 +273,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
 
     // flatten frame
     int32_t frame[num_pixels][3];
-    flattenCols(matLab, frame);
+    flattenRows(matLab, frame);
     matLab.release();
 
     std::stringstream ss;
