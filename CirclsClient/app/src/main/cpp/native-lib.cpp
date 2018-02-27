@@ -15,6 +15,8 @@ extern "C"
 using namespace std;
 using namespace cv;
 
+int mWidth;
+int mHeight;
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -29,6 +31,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     return JNI_VERSION_1_6;
 }
 
+extern "C"
+JNIEXPORT void Java_edu_gmu_cs_CirclsClient_RxHandler_FrameSize(JNIEnv &env, jobject obj,
+                                                                           jint width, jint height) {
+    mWidth = width;
+    mHeight = height;
+}
 
 // takes an OpenCV Matrix of 3D pixels
 // returns a single averaged column of 3D pixels
@@ -259,12 +267,12 @@ int decode_rs (uint8_t *encoded, size_t length)
 
 extern "C"
 JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
-                                                                           jint width, jint height, jobject pixels) {
-    int num_pixels = width;
+                                                                           jobject pixels) {
+    int num_pixels = mWidth;
 
     // copy flipped RGBA frame into matrix
-    Mat matRGB(height, width, CV_8UC4);
-    memcpy(matRGB.data, env.GetDirectBufferAddress(pixels), width * height * 4);
+    Mat matRGB(mHeight, mWidth, CV_8UC4);
+    memcpy(matRGB.data, env.GetDirectBufferAddress(pixels), mWidth * mHeight * 4);
 
     // convert frame to Lab color-space
     Mat matLab;
