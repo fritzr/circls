@@ -238,7 +238,7 @@ int decode_rs (uint8_t *encoded, size_t length)
     size_t i = 0;
     size_t out_index = 0;
     size_t in_index = 0;
-    while (left > 0)
+    while (left > NPAR)
     {
         size_t en_chunk = 255;
         if (left < en_chunk)
@@ -261,7 +261,7 @@ int decode_rs (uint8_t *encoded, size_t length)
         i++;
     }
 
-    return check_pass ? out_index : 0;
+    return check_pass ? out_index : -1;
 }
 
 
@@ -302,18 +302,21 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     // demodulate
     uint8_t data[256]; // upper bound # bytes
     int num_demodulated = demodulate(data, symbols, num_symbols);
-    int num_encoded = data[0];
+    int num_encoded = 16;
 
     // decode RS
-    int num_decoded = decode_rs((data + 1), num_encoded);
-    ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Message: %.*s %x %x %x %x", num_demodulated, num_encoded, num_decoded, num_encoded - NPAR, (data + 1), data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
+    int num_decoded = decode_rs((data + 1), num_encoded) + 1;
+    ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
+         num_demodulated, num_encoded, num_decoded,
+         data[0], num_encoded - NPAR, (data + 1),
+         data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
 
     // return text
     jcharArray message = env.NewCharArray(num_decoded);
     if (message != NULL) {
         jchar buf[num_decoded];
         for (int i = 0; i < num_decoded; i++) {
-            buf[i] = data[i + 1];
+            buf[i] = data[i];
         }
         env.SetCharArrayRegion(message, 0, num_decoded, buf);
     }

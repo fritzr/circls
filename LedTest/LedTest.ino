@@ -15,11 +15,11 @@ uint8_t symbols[] = {
   };
 
 char packet[] =
-    "\x0"          // length
+    "\x0"          // id
     "Hello world!" // message
     "\x0\x0\x0";   // parity
 /*
- *    10  00 01 00 00  RRGR
+ *    11  00 01 00 01  GRGR
  * H  48  01 00 10 00  RBRG
  * e  65  01 10 01 01  GGBG
  * l  6c  01 10 11 00  RYBG
@@ -42,7 +42,7 @@ void setup() {
   // configure output pins
   DDRB |= 0b1110;
 
-  // set packet length
+  // set packet data length
   size_t len = strlen(packet + 1);
   packet[0] = len + NPAR;
 
@@ -51,7 +51,6 @@ void setup() {
   encode_data((packet + 1), len, (packet + 1));
 
   Serial.begin(115200);
-  Serial.println(len);
   for (int i = 0; i < sizeof(packet); i++) {
     Serial.print(packet[i], HEX);
     Serial.print(' ');
@@ -86,5 +85,8 @@ void loop() {
       delayMicroseconds(WIDTH);
     }
   }
+
+  // increment id
+  packet[0]++;
 }
 
