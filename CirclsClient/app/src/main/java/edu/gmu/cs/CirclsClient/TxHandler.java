@@ -37,7 +37,6 @@ public class TxHandler {
                             new PatternConverter(PatternType.Cycles, IR_CARRIER, data)));
                     Log.d(String.valueOf(id), Arrays.toString(data));
                 } catch (InterruptedException e) {
-                    Log.d(TAG, e.getStackTrace().toString());
                 }
             }
         }

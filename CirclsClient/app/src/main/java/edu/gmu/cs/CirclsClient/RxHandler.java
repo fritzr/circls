@@ -10,7 +10,6 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -35,11 +34,10 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
                 try {
                     char[] text = FrameProcessor(mFrameQueue.take());
 
-                    if (text.length > 0) {
-                        mDisplay.update(text.length, String.valueOf(text));
+                    if (text.length > 1) {
+                        mDisplay.update(Integer.valueOf(text[0]), String.valueOf(text).substring(1));
                     }
                 } catch (InterruptedException e) {
-                    Log.d(TAG, e.getStackTrace().toString());
                 }
             }
         }

@@ -11,9 +11,10 @@ import android.widget.EditText;
 
 import com.obd.infrared.log.LogToEditText;
 
+import java.util.BitSet;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, MessageHandler {
+public class MainActivity extends AppCompatActivity implements MessageHandler {
     private static final String TAG = "CIRCLS Client";
     private static final int CAMERA_PERMS = 0xbeef;
     private static final int IR_PERMS = 0xbadd;
@@ -22,11 +23,32 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RxHandler rx = new RxHandler();
     private TxHandler tx = new TxHandler();
 
+    // sliding window
+    private static final int MAX_ID = 256;
+    private static final int WINDOW_SIZE = MAX_ID / 2;
+    private BitSet window = new BitSet(MAX_ID);
+    private int tail = 0;
+
     @Override
     public void update(final Integer id, final String msg) {
         runOnUiThread(new Runnable() {
             public void run() {
-                display.append(id + ":" + msg + '\n');
+                display.append(id + ":" + msg + "\n");
+
+                // if the message is in the window
+                if ((id - tail + MAX_ID) % MAX_ID <= WINDOW_SIZE) {
+                    // flag received
+                    window.set(id);
+
+                    // slide window
+                    while (window.get(tail)) {
+                        window.clear(tail++);
+                    }
+
+                    // NAK missing id
+                    tx.sendNAK(tail);
+                    display.append(tail + ":NAK\n");
+                }
             }
         });
     }
@@ -88,7 +110,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // setup display
         EditText console = (EditText) findViewById(R.id.console);
-        console.setOnClickListener(this);
         display = new LogToEditText(console, TAG);
 
         // request camera & IR
@@ -100,15 +121,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onResume();
         rx.start();
         tx.start();
-    }
-
-    Random rnd = new Random(); // tmp
-    @Override
-    public void onClick(View v) {
-        display.clear();
-        int i = rnd.nextInt(256);
-        display.log("Sending: " + i);
-        tx.sendNAK(i);
     }
 
     @Override
