@@ -22,17 +22,18 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     private MessageHandler mDisplay;
     private CameraGLSurfaceView mView;
 
+    private int mWidth = 0, mHeight = 0;
+
     // jni
     static { System.loadLibrary("native-lib"); }
-    private native void FrameSize(int width, int height);
-    private native char[] FrameProcessor(ByteBuffer data);
+    private native char[] FrameProcessor(int width, int height, ByteBuffer data);
 
     class Consumer implements Runnable {
         @Override
         public void run() {
             while (true) {
                 try {
-                    char[] text = FrameProcessor(mFrameQueue.take());
+                    char[] text = FrameProcessor(mWidth, mHeight, mFrameQueue.take());
 
                     if (text.length > 1) {
                         mDisplay.update(Integer.valueOf(text[0]), String.valueOf(text).substring(1));
@@ -81,12 +82,13 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
 
     @Override
     public void onCameraViewStarted(int width, int height) {
-        FrameSize(width, height);
+        mWidth = width; mHeight = height;
         Log.d(TAG, "Preview (" + width + "," + height + ")");
     }
 
     @Override
     public void onCameraViewStopped() {
+        mWidth = 0; mHeight = 0;
         mFrameQueue.clear();
     }
 
