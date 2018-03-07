@@ -11,7 +11,7 @@ uint8_t symbols[] = {
     0b0010, // red   (PIN 9)
     0b0100, // green (PIN 10)
     0b1000, // blue  (PIN 11)
-    0b0110, // yellow
+    0b0110  // yellow
   };
 
 char packet[] =

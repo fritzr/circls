@@ -251,7 +251,7 @@ int decode_rs (uint8_t *encoded, size_t length)
         i++;
     }
 
-    return check_pass ? out_index : 0;
+    return check_pass ? out_index : -1;
 }
 
 
@@ -273,7 +273,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     matLab.release();
 
     std::stringstream ss;
-    for (int i = 0; i < num_pixels; i++) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
+    for (int i = num_pixels - 1; i >= 0; i--) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
     ALOG("Frame: %s", ss.str().c_str());
 
     // detect symbols
