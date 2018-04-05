@@ -60,7 +60,7 @@ void flattenCols(Mat &mat, int32_t flat[][3])
 
 
 // takes an OpenCV Matrix of 3D pixels
-// returns a single averaged row of 3D pixels
+// returns a single averaged row of 3D pixels in reverse order
 void flattenRows(Mat &mat, int32_t flat[][3]) {
     // get Mat properties
     int rows = mat.rows;
@@ -76,18 +76,18 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
         // sum up each col
         for (int j = 0; j < cols; j++)
         {
-            flat[j][0] += (*data++);
-            flat[j][1] += (*data++);
-            flat[j][2] += (*data++);
+            flat[cols - j - 1][0] += (*data++);
+            flat[cols - j - 1][1] += (*data++);
+            flat[cols - j - 1][2] += (*data++);
         }
     }
 
     // calculate col averages and adjust
-    for (int i = 0; i < cols; i++)
+    for (int j = 0; j < cols; j++)
     {
-        flat[i][0] /= rows;
-        flat[i][1] = flat[i][1] / rows - 128;
-        flat[i][2] = flat[i][2] / rows - 128;
+        flat[j][0] /= rows;
+        flat[j][1] = flat[j][1] / rows - 128;
+        flat[j][2] = flat[j][2] / rows - 128;
     }
 }
 
@@ -100,7 +100,7 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
     char p = '1';           // previous symbol
 
     // convert Lab numbers to 01RGBY representation
-    for (int i = pixels - 1; i >= 0; i--)
+    for (int i = 0; i < pixels; i++)
     {
         int L = frame[i][0];
         int a = frame[i][1];
@@ -273,7 +273,7 @@ JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEn
     matLab.release();
 
     std::stringstream ss;
-    for (int i = num_pixels - 1; i >= 0; i--) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
+    for (int i = 0; i < num_pixels; i++) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
     ALOG("Frame: %s", ss.str().c_str());
 
     // detect symbols
