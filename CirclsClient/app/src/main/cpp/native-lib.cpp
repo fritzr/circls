@@ -254,9 +254,8 @@ int decode_rs (uint8_t *encoded, size_t length)
     return check_pass ? out_index : -1;
 }
 
-
 extern "C"
-JNIEXPORT jcharArray Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
+JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
     // build matrix around RGBA frame
     Mat matRGB(height, width, CV_8UC4, env.GetDirectBufferAddress(pixels));
