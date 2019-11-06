@@ -1,0 +1,11 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 23
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 23
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+}
