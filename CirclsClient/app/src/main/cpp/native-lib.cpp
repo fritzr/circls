@@ -257,46 +257,52 @@ int decode_rs (uint8_t *encoded, size_t length)
 extern "C"
 JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
-    // build matrix around RGBA frame
-    Mat matRGB(height, width, CV_8UC4, env.GetDirectBufferAddress(pixels));
-
-    // convert frame to Lab color-space
-    Mat matLab;
-    cvtColor(matRGB, matLab, CV_RGB2Lab);
-    matRGB.release();
-
-    // flatten frame
-    int num_pixels = width;
-    int32_t frame[num_pixels][3];
-    flattenRows(matLab, frame);
-    matLab.release();
-
-    std::stringstream ss;
-    for (int i = 0; i < num_pixels; i++) ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] <<')';
-    ALOG("Frame: %s", ss.str().c_str());
-
-    // detect symbols
-    uint8_t symbols[num_pixels][2];
-    int num_symbols = detectSymbols(symbols, frame, num_pixels);
-
-    ss.str("");
-    for (int i = 0; i < num_symbols; i++) ss << setw(3) << (char) symbols[i][0];
-    ALOG("Symbols: %s", ss.str().c_str());
-    ss.str("");
-    for (int i = 0; i < num_symbols; i++) ss << setw(3) << (int) symbols[i][1];
-    ALOG("Widths : %s", ss.str().c_str());
-
-    // demodulate
     uint8_t data[256]; // upper bound # bytes
-    int num_demodulated = demodulate(data, symbols, num_symbols);
-    int num_encoded = 16;
+    int num_decoded = 0;
 
-    // decode RS
-    int num_decoded = decode_rs((data + 1), num_encoded) + 1;
-    ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
-         num_demodulated, num_encoded, num_decoded,
-         data[0], num_encoded - NPAR, (data + 1),
-         data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
+    if (width > 0 && height > 0) {
+        // build matrix around RGBA frame
+        Mat matRGB(height, width, CV_8UC4, env.GetDirectBufferAddress(pixels));
+
+        // convert frame to Lab color-space
+        Mat matLab;
+        cvtColor(matRGB, matLab, COLOR_RGB2Lab);
+        matRGB.release();
+
+        // flatten frame
+        int num_pixels = width;
+        int32_t frame[num_pixels][3];
+        flattenRows(matLab, frame);
+        matLab.release();
+
+        std::stringstream ss;
+        for (int i = 0; i < num_pixels; i++)
+            ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] << ')';
+        ALOG("Frame: %s", ss.str().c_str());
+
+        // detect symbols
+        uint8_t symbols[num_pixels][2];
+        int num_symbols = detectSymbols(symbols, frame, num_pixels);
+
+        ss.str("");
+        for (int i = 0; i < num_symbols; i++) ss << setw(3) << (char) symbols[i][0];
+        ALOG("Symbols: %s", ss.str().c_str());
+        ss.str("");
+        for (int i = 0; i < num_symbols; i++) ss << setw(3) << (int) symbols[i][1];
+        ALOG("Widths : %s", ss.str().c_str());
+
+        // demodulate
+        int num_demodulated = demodulate(data, symbols, num_symbols);
+        int num_encoded = 16;
+
+        // decode RS
+        num_decoded = decode_rs((data + 1), num_encoded) + 1;
+        ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
+             num_demodulated, num_encoded, num_decoded,
+             data[0], num_encoded - NPAR, (data + 1),
+             data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1],
+             data[num_encoded]);
+    }
 
     // return text
     jcharArray message = env.NewCharArray(num_decoded);
