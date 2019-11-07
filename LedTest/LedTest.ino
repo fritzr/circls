@@ -4,6 +4,7 @@ extern "C"
     #include "ecc.h"
 }
 
+#define IR_OUT 3
 #define WIDTH 150
 
 // common cathode values
@@ -39,7 +40,11 @@ char packet[] =
  */
 
 void setup() {
-  // configure output pins
+  // configure IR pins
+  pinMode(IR_OUT, INPUT);
+  attachInterrupt(digitalPinToInterrupt(IR_OUT), irReceive, RISING);
+
+  // configure LED pins
   DDRB |= 0b1110;
 
   // set packet data length
@@ -90,3 +95,6 @@ void loop() {
   packet[0]++;
 }
 
+void irReceive() {
+  packet[0] = 0;
+}
