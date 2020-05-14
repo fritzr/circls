@@ -66,7 +66,6 @@ void setup() {
   power_adc_disable();
   power_twi_disable();
   power_usart0_disable();
-  power_timer0_disable();
   power_timer1_disable();
   power_timer2_disable();
 }
