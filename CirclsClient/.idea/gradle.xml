@@ -10,10 +10,10 @@
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
         <option name="modules">
           <set>
+            <option value="$PROJECT_DIR$/../../OpenCV-android-sdk/sdk" />
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/infrared" />
-            <option value="$PROJECT_DIR$/openCVLibrary411" />
           </set>
         </option>
         <option name="resolveModulePerSourceSet" value="false" />

@@ -1,1 +1,6 @@
-include ':app', ':infrared', ':openCVLibrary411'
+include ':app', ':infrared', ':opencv'
+
+def properties = new Properties()
+properties.load(new File(settingsDir, 'local.properties').newDataInputStream())
+def opencvsdk = properties.getProperty('opencv.dir')
+project(':opencv').projectDir = new File(opencvsdk)

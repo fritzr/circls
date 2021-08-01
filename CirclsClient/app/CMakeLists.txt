@@ -69,10 +69,10 @@ target_link_libraries( # Specifies the target library.
                        ${log-lib}
 
                        # OpenCV libraries
-                       ${OpenCvDir}/libs/${CMAKE_ANDROID_ARCH_ABI}/libopencv_java4.so
+                       ${OpenCvDir}/native/libs/${CMAKE_ANDROID_ARCH_ABI}/libopencv_java4.so
                        )
 
 
 include_directories(
-    ${OpenCvDir}/jni/include
+    ${OpenCvDir}/native/jni/include
 )

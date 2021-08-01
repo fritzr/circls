@@ -2,8 +2,9 @@
 /local.properties
 /.idea/workspace.xml
 /.idea/libraries
-.DS_Store
-/build
-*/build
-.externalNativeBuild
 /.idea/caches/gradle_models.ser
+/.idea/caches/build_file_checksums.ser
+.DS_Store
+build
+.externalNativeBuild
+.cxx

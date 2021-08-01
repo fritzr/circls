@@ -1,0 +1,37 @@
+diff -ru opencv-4.5.3-android-sdk/OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraBridgeViewBase.java OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraBridgeViewBase.java
+--- opencv-4.5.3-android-sdk/OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraBridgeViewBase.java	2021-07-05 10:34:22.000000000 -0400
++++ OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraBridgeViewBase.java	2021-07-31 23:21:48.297550500 -0400
+@@ -426,6 +426,8 @@
+             Canvas canvas = getHolder().lockCanvas();
+             if (canvas != null) {
+                 canvas.drawColor(0, android.graphics.PorterDuff.Mode.CLEAR);
++                canvas.save();
++                canvas.rotate(90, canvas.getWidth() / 2,canvas.getHeight() / 2);
+                 if (BuildConfig.DEBUG)
+                     Log.d(TAG, "mStretch value: " + mScale);
+ 
+@@ -443,6 +445,7 @@
+                          (canvas.getHeight() - mCacheBitmap.getHeight()) / 2 + mCacheBitmap.getHeight()), null);
+                 }
+ 
++                canvas.restore();
+                 if (mFpsMeter != null) {
+                     mFpsMeter.measure();
+                     mFpsMeter.draw(canvas, 20, 30);
+diff -ru opencv-4.5.3-android-sdk/OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraGLRendererBase.java OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraGLRendererBase.java
+--- opencv-4.5.3-android-sdk/OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraGLRendererBase.java	2021-07-05 10:34:22.000000000 -0400
++++ OpenCV-android-sdk/sdk/java/src/org/opencv/android/CameraGLRendererBase.java	2021-07-31 23:18:44.106150600 -0400
+@@ -52,10 +52,10 @@
+             1, -1,
+             1,  1 };
+     private final float texCoordOES[] = {
+-            0,  1,
+-            0,  0,
+             1,  1,
+-            1,  0 };
++            0,  1,
++            1,  0,
++            0,  0 };
+     private final float texCoord2D[] = {
+             0,  0,
+             0,  1,
