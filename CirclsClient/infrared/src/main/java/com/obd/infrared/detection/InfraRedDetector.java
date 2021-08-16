@@ -1,10 +1,13 @@
 package com.obd.infrared.detection;
 
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
 
 import com.obd.infrared.detection.concrete.ActualDetector;
 import com.obd.infrared.detection.concrete.HtcDetector;
+import com.obd.infrared.detection.concrete.LeDetector;
 import com.obd.infrared.detection.concrete.LgDetector;
 import com.obd.infrared.detection.concrete.ObsoleteSamsungDetector;
 import com.obd.infrared.log.Logger;
@@ -22,6 +25,24 @@ public class InfraRedDetector {
             this.context = context;
             this.logger = logger;
         }
+
+
+        public boolean hasAnyPackage(String... packageNames) {
+            PackageManager manager = context.getPackageManager();
+            List<ApplicationInfo> packages = manager.getInstalledApplications(0);
+            for (ApplicationInfo info : packages) {
+                for (String packageName : packageNames) {
+                    if (info.packageName.startsWith("com.uei.")) {
+                        logger.log("Package: " + info.packageName);
+                    }
+                    if (info.packageName.contains(packageName)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
     }
 
     protected final DetectorParams detectorParams;
@@ -34,6 +55,7 @@ public class InfraRedDetector {
 
         this.detectors.add(new LgDetector());
         this.detectors.add(new HtcDetector());
+        this.detectors.add(new LeDetector());
         this.detectors.add(new ObsoleteSamsungDetector());
         this.detectors.add(new ActualDetector());
     }

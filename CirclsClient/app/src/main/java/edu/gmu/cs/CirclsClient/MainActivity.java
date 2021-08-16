@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
 import android.widget.EditText;
 
 import com.obd.infrared.log.LogToEditText;
@@ -31,7 +32,7 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
     public void update(final Integer id, final String msg) {
         runOnUiThread(new Runnable() {
             public void run() {
-                display.append(id + ":" + msg + "\n");
+                display.append(id + ":" + msg);
 
                 // if the message is in the window
                 if ((id - tail + MAX_ID) % MAX_ID <= WINDOW_SIZE) {
@@ -45,7 +46,7 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
 
                     // NAK missing id
                     tx.sendNAK(tail);
-                    display.append(tail + ":NAK\n");
+                    display.append(tail + ":NAK");
                 }
             }
         });
@@ -109,6 +110,15 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
         // setup display
         EditText console = (EditText) findViewById(R.id.console);
         display = new LogToEditText(console, TAG);
+
+        // temporary
+        console.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                tx.sendNAK(tail);
+                display.append(tail + ":NAK");
+                tail = (tail + 1) % MAX_ID;
+            }
+        });
 
         // request camera & IR
         getPermissions();
