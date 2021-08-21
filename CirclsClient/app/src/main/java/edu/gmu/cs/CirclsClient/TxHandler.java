@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class TxHandler {
     private static final String TAG = "TxHandler";
-    private static final int IR_CARRIER = 38400;
+    private static final int IR_CARRIER = 38000;
     private static final int PULSE_WIDTH = 8;
     private static final int IR_PACKET_SIZE = 32;
 

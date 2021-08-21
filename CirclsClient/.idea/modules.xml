@@ -2,10 +2,10 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/CirclsClient.iml" filepath="$PROJECT_DIR$/CirclsClient.iml" group="CirclsClient" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" group="CirclsClient/app" />
-      <module fileurl="file://$PROJECT_DIR$/infrared/infrared.iml" filepath="$PROJECT_DIR$/infrared/infrared.iml" group="CirclsClient/infrared" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/opencv.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/opencv.iml" group="CirclsClient/opencv" />
+      <module fileurl="file://$PROJECT_DIR$/CirclsClient.iml" filepath="$PROJECT_DIR$/CirclsClient.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.iml" filepath="$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.iml" />
     </modules>
   </component>
 </project>

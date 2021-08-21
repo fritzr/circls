@@ -4,13 +4,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iomanip>
 #include <sstream>
-extern "C"
-{
-    #include "rscode-1.3/ecc.h"
-}
+#include "RS-FEC.h"
 
 #define LOG_TAG    "native-lib"
 #define ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+
+#define NMSG 12
+#define NPAR 4
+RS::ReedSolomon<NMSG, NPAR> rs;
 
 using namespace std;
 using namespace cv;
@@ -21,9 +22,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {
         return -1;
     }
-
-    // setup RS
-    initialize_ecc();
 
     return JNI_VERSION_1_6;
 }
@@ -215,45 +213,6 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
     return j * 4 + k / 8;
 }
 
-
-int decode_rs (uint8_t *encoded, size_t length)
-{
-    bool check_pass = true;
-    int st;
-
-    // Then decode the remainder of the message, in 255-byte chunks.
-    // The input in 255 - NPAR byte data chunks, with NPAR parity bits after each
-    // chunk, plus a possibly smaller chunk at the end, followed by a FCS.
-    size_t left = length;
-    size_t i = 0;
-    size_t out_index = 0;
-    size_t in_index = 0;
-    while (left > NPAR)
-    {
-        size_t en_chunk = 255;
-        if (left < en_chunk)
-            en_chunk = left;
-
-        decode_data (encoded + in_index, en_chunk);
-        int syndrome = check_syndrome ();
-        if (syndrome != 0)
-        {
-            st = correct_errors_erasures (encoded + in_index, en_chunk, 0, NULL);
-            if (st != 1)
-            {
-                check_pass = false;
-            }
-        }
-        memcpy (encoded + out_index, encoded + in_index, en_chunk - NPAR);
-        out_index += en_chunk - NPAR; // don't keep parity bits in the output
-        in_index += en_chunk;
-        left -= en_chunk;
-        i++;
-    }
-
-    return check_pass ? out_index : -1;
-}
-
 extern "C"
 JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
@@ -293,10 +252,10 @@ JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcess
 
         // demodulate
         int num_demodulated = demodulate(data, symbols, num_symbols);
-        int num_encoded = 16;
 
         // decode RS
-        num_decoded = decode_rs((data + 1), num_encoded) + 1;
+        int num_encoded = NMSG + NPAR;
+        num_decoded = rs.Decode((data + 1), (data + 1)) ? 0 : NMSG + 1;
         ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
              num_demodulated, num_encoded, num_decoded,
              data[0], num_encoded - NPAR, (data + 1),

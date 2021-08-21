@@ -1,11 +1,11 @@
 #include <avr/power.h>
-extern "C"
-{
-    #include "ecc.h"
-}
+#include <IRremote.h>
+#include "RS-FEC.h"
 
-#define IR_OUT 3
 #define WIDTH 150
+
+// enable IR
+IRrecv irrecv(3);
 
 // common cathode values
 uint8_t symbols[] = {
@@ -33,41 +33,35 @@ char packet[] =
  * l  6c  01 10 11 00  RYBG
  * d  64  01 10 01 00  RGBG
  * !  21  00 10 00 01  GRBR
- *    38  00 11 10 00  RBYR
- *    9d  10 01 11 01  GYGB
- *    04  00 00 01 00  RGRR
- *    1c  00 01 11 00  RYGR
+ *    bb  10 11 10 11  YBYB
+ *    dc  11 01 11 00  RYGY
+ *    1d  00 01 11 01  GYGR
+ *    5b  01 01 10 11  YBGG
  */
+
+#define NMSG 12
+#define NPAR 4
+RS::ReedSolomon<NMSG, NPAR> rs;
 
 void setup() {
   // configure IR pins
-  pinMode(IR_OUT, INPUT);
-  attachInterrupt(digitalPinToInterrupt(IR_OUT), irReceive, RISING);
+  irrecv.enableIRIn();
 
   // configure LED pins
   DDRB |= 0b1110;
 
   // set packet data length
-  size_t len = strlen(packet + 1);
-  packet[0] = len + NPAR;
+  packet[0] = NMSG + NPAR + 1;
 
   // calculate parity
-  initialize_ecc ();
-  encode_data((packet + 1), len, (packet + 1));
+  rs.Encode((packet + 1), (packet + 1));
 
   Serial.begin(115200);
   for (int i = 0; i < sizeof(packet); i++) {
-    Serial.print(packet[i], HEX);
+    Serial.print((byte)packet[i], HEX);
     Serial.print(' ');
   }
-  Serial.end();
-
-  // shutdown everything unnecessary
-  power_adc_disable();
-  power_twi_disable();
-  power_usart0_disable();
-  power_timer1_disable();
-  power_timer2_disable();
+//  Serial.end();
 }
 
 void loop() {
@@ -90,10 +84,27 @@ void loop() {
     }
   }
 
-  // increment id
-  packet[0]++;
+  // use IR data to reset packet # if necessary
+  int data = decodeIR();
+  if (data >= 0) {
+    Serial.println(data);
+    packet[0] = data;
+  } else {
+    packet[0]++;
+  }
 }
 
-void irReceive() {
-  packet[0] = 0;
+int decodeIR()
+{
+  if (irparams.StateForISR != IR_REC_STATE_STOP) return -1;
+
+  uint32_t ret = 0;
+  for (uint8_t i = 1; i < irparams.rawlen; i += 2) {
+    ret <<= 1;
+    bool b = irparams.rawbuf[i] < irparams.rawbuf[i+1] ? 0 : 1;
+    ret |= b;
+  }
+  
+  irrecv.resume();
+  return ret & 0xFF;
 }
