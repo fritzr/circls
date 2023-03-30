@@ -73,7 +73,7 @@ public class TxHandler {
     // generate NAK pattern from ID
     int[] GetNAKPattern(int id)
     {
-        int ret[] = new int[IR_PACKET_SIZE];
+        int[] ret = new int[IR_PACKET_SIZE];
 
         // magic + fcs
         id |= 0b10100000 << 8;

@@ -4,11 +4,6 @@
     <facet type="android" name="Android">
       <configuration>
         <option name="SELECTED_BUILD_VARIANT" value="debug" />
-        <option name="ASSEMBLE_TASK_NAME" value="assembleDebug" />
-        <option name="COMPILE_JAVA_TASK_NAME" value="compileDebugSources" />
-        <afterSyncTasks>
-          <task>generateDebugSources</task>
-        </afterSyncTasks>
         <option name="ALLOW_USER_CONFIGURATION" value="false" />
         <option name="MANIFEST_FILE_RELATIVE_PATH" value="/src/main/AndroidManifest.xml" />
         <option name="RES_FOLDER_RELATIVE_PATH" value="/src/main/res" />
@@ -18,27 +13,31 @@
       </configuration>
     </facet>
   </component>
-  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8" inherit-compiler-output="true">
+  <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
+    <output url="file://$MODULE_DIR$/../../../app/build/intermediates/javac/debug/classes" />
+    <output-test url="file://$MODULE_DIR$/../../../app/build/intermediates/javac/debugUnitTest/classes" />
     <exclude-output />
     <content url="file://$MODULE_DIR$/../../../app/build/generated/ap_generated_sources/debugUnitTest/out" />
     <content url="file://$MODULE_DIR$/../../../app/src/test" />
     <content url="file://$MODULE_DIR$/../../../app/src/testDebug" />
     <orderEntry type="jdk" jdkName="Android API 23 Platform" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="CirclsClient.opencv.main" scope="TEST" />
-    <orderEntry type="module" module-name="CirclsClient.infrared.main" scope="TEST" />
     <orderEntry type="module" module-name="CirclsClient.app.main" scope="TEST" />
+    <orderEntry type="module" module-name="CirclsClient.infrared.main" scope="TEST" />
+    <orderEntry type="module" module-name="CirclsClient.opencv.main" scope="TEST" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:support-annotations:23.4.0" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support.constraint:constraint-layout-solver:1.0.2" level="project" />
-    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.4.21" level="project" />
-    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-common:1.4.21" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.6.21" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib:1.6.21" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-common:1.6.21" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains:annotations:13.0" level="project" />
-    <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:design:23.4.0@aar" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.6.21" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:appcompat-v7:23.4.0@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:animated-vector-drawable:23.4.0@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:support-vector-drawable:23.4.0@aar" level="project" />
-    <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:recyclerview-v7:23.4.0@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:support-v4:23.4.0@aar" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:design:23.4.0@aar" level="project" />
+    <orderEntry type="library" scope="TEST" name="Gradle: com.android.support:recyclerview-v7:23.4.0@aar" level="project" />
     <orderEntry type="library" scope="TEST" name="Gradle: com.android.support.constraint:constraint-layout:1.0.2@aar" level="project" />
   </component>
   <component name="TestModuleProperties" production-module="CirclsClient.app.main" />

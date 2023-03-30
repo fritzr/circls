@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     private static final String TAG = "RxHandler";
 
-    private BlockingQueue<ByteBuffer> mFrameQueue = new LinkedBlockingQueue<>();
+    final private BlockingQueue<ByteBuffer> mFrameQueue = new LinkedBlockingQueue<>();
     private BaseLoaderCallback mLoaderCallback;
     private MessageHandler mDisplay;
     private CameraGLSurfaceView mView;
@@ -36,7 +36,7 @@ public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
                     char[] text = FrameProcessor(mWidth, mHeight, mFrameQueue.take());
 
                     if (text.length > 1) {
-                        mDisplay.update(Integer.valueOf(text[0]), String.valueOf(text).substring(1));
+                        mDisplay.update((int) text[0], String.valueOf(text).substring(1));
                     }
                 } catch (InterruptedException e) {
                 }

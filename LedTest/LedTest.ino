@@ -101,7 +101,7 @@ int decodeIR()
   uint32_t ret = 0;
   for (uint8_t i = 1; i < irparams.rawlen; i += 2) {
     ret <<= 1;
-    bool b = irparams.rawbuf[i] < irparams.rawbuf[i+1] ? 0 : 1;
+    bool b = irparams.rawbuf[i] <= irparams.rawbuf[i+1] ? 0 : 1;
     ret |= b;
   }
   

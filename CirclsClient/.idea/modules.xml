@@ -4,8 +4,17 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/CirclsClient.iml" filepath="$PROJECT_DIR$/CirclsClient.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/app/CirclsClient.app.unitTest.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.iml" filepath="$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.main.iml" filepath="$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/infrared/CirclsClient.infrared.unitTest.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.androidTest.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.androidTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.main.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.unitTest.iml" filepath="$PROJECT_DIR$/.idea/modules/-1224935532/CirclsClient.opencv.unitTest.iml" />
     </modules>
   </component>
 </project>

@@ -8,10 +8,13 @@ android {
         targetSdkVersion 23
         consumerProguardFiles 'proguard-rules.pro'
     }
-
     packagingOptions {
-        exclude 'AndroidManifest.xml'
+        resources {
+            excludes += ['AndroidManifest.xml']
+        }
     }
+    namespace 'com.obd.infrared'
+
 }
 
 dependencies {
