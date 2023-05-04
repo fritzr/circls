@@ -1,4 +1,5 @@
 #include <avr/power.h>
+#define EXCLUDE_UNIVERSAL_PROTOCOLS enabled
 #include <IRremote.h>
 #include "RS-FEC.h"
 
@@ -61,6 +62,7 @@ void setup() {
     Serial.print((byte)packet[i], HEX);
     Serial.print(' ');
   }
+  Serial.println();
 //  Serial.end();
 }
 
@@ -85,7 +87,7 @@ void loop() {
   }
 
   // use IR data to reset packet # if necessary
-  int data = decodeIR();
+  int16_t data = decodeIR();
   if (data >= 0) {
     Serial.println(data);
     packet[0] = data;
@@ -94,17 +96,20 @@ void loop() {
   }
 }
 
-int decodeIR()
+int16_t decodeIR()
 {
   if (irparams.StateForISR != IR_REC_STATE_STOP) return -1;
 
-  uint32_t ret = 0;
-  for (uint8_t i = 1; i < irparams.rawlen; i += 2) {
+  uint16_t ret = 0;
+  for (uint8_t i = 1; i < 32; i += 2) {
     ret <<= 1;
-    bool b = irparams.rawbuf[i] <= irparams.rawbuf[i+1] ? 0 : 1;
+    bool b = irparams.rawbuf[i] > irparams.rawbuf[i+1] ? 1 : 0;
     ret |= b;
   }
-  
   irrecv.resume();
+
+  // check magic number
+  if (ret >> 8 != 0b10100000) return -1;
+
   return ret & 0xFF;
 }
