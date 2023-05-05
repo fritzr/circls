@@ -19,15 +19,14 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
     private static final int IR_PERMS = 0xbadd;
 
     private LogToEditText display;
-    private RxHandler rx = new RxHandler();
-    private TxHandler tx = new TxHandler();
+    private final RxHandler rx = new RxHandler();
+    private final TxHandler tx = new TxHandler();
 
     // sliding window
     private static final int MAX_ID = 256;
     private static final int WINDOW_SIZE = MAX_ID / 2;
-    private BitSet window = new BitSet(MAX_ID);
+    private final BitSet window = new BitSet(MAX_ID);
     private int tail = 0;
-
     @Override
     public void update(final Integer id, final String msg) {
         runOnUiThread(new Runnable() {
@@ -41,7 +40,8 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
 
                     // slide window
                     while (window.get(tail)) {
-                        window.clear(tail++);
+                        window.clear(tail);
+                        tail = (tail + 1) % MAX_ID;
                     }
 
                     // NAK missing id
@@ -114,9 +114,7 @@ public class MainActivity extends AppCompatActivity implements MessageHandler {
         // temporary
         console.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                tx.sendNAK(tail);
-                display.append(tail + ":NAK");
-                tail = (tail + 1) % MAX_ID;
+                update(tail, "ACK");
             }
         });
 

@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class RxHandler implements CameraGLSurfaceView.CameraTextureListener {
     private static final String TAG = "RxHandler";
 
-    final private BlockingQueue<ByteBuffer> mFrameQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ByteBuffer> mFrameQueue = new LinkedBlockingQueue<>();
     private BaseLoaderCallback mLoaderCallback;
     private MessageHandler mDisplay;
     private CameraGLSurfaceView mView;

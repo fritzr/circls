@@ -21,7 +21,7 @@ public class TxHandler {
     private static final int PULSE_WIDTH = 8;
     private static final int IR_PACKET_SIZE = 32;
 
-    private BlockingQueue<Integer> mIdQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<Integer> mIdQueue = new LinkedBlockingQueue<>();
 
     private InfraRed mInfraRed;
     private PatternAdapter patternAdapter;

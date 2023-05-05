@@ -4,11 +4,12 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iomanip>
 #include <sstream>
-#include "RS-FEC.h"
 
 #define LOG_TAG    "native-lib"
 #define ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
+#define DEBUG // avoid assert
+#include "RS-FEC.h"
 #define NMSG 12
 #define NPAR 4
 RS::ReedSolomon<NMSG, NPAR> rs;
@@ -253,14 +254,15 @@ JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcess
         // demodulate
         int num_demodulated = demodulate(data, symbols, num_symbols);
 
-        // decode RS
+        // decode if we have a full message
         int num_encoded = NMSG + NPAR;
-        num_decoded = rs.Decode((data + 1), (data + 1)) ? 0 : NMSG + 1;
+        if (num_demodulated >= num_encoded + 1) {
+            num_decoded = rs.Decode((data + 1), (data + 1)) ? 0 : NMSG + 1;
+        }
         ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
              num_demodulated, num_encoded, num_decoded,
              data[0], num_encoded - NPAR, (data + 1),
-             data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1],
-             data[num_encoded]);
+             data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
     }
 
     // return text
