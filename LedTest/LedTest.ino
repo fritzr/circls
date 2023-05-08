@@ -1,7 +1,7 @@
 #include <avr/power.h>
 #define EXCLUDE_UNIVERSAL_PROTOCOLS enabled
 #include <IRremote.h>
-#include "RS-FEC.h"
+#include "rs.hpp"
 
 #define WIDTH 150
 

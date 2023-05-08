@@ -9,7 +9,7 @@
 #define ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
 #define DEBUG // avoid assert
-#include "RS-FEC.h"
+#include "rs.hpp"
 #define NMSG 12
 #define NPAR 4
 RS::ReedSolomon<NMSG, NPAR> rs;
