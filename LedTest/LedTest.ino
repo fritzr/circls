@@ -40,7 +40,7 @@ char packet[] =
  *    5b  01 01 10 11  YBGG
  */
 
-#define NMSG 12
+#define NMSG 13
 #define NPAR 4
 RS::ReedSolomon<NMSG, NPAR> rs;
 
@@ -51,49 +51,45 @@ void setup() {
   // configure LED pins
   DDRB |= 0b1110;
 
-  // set packet data length
-  packet[0] = NMSG + NPAR + 1;
-
-  // calculate parity
-  rs.Encode((packet + 1), (packet + 1));
-
-  Serial.begin(115200);
-  for (int i = 0; i < sizeof(packet); i++) {
-    Serial.print((byte)packet[i], HEX);
-    Serial.print(' ');
-  }
-  Serial.println();
-//  Serial.end();
+//  Serial.begin(115200);
 }
 
 void loop() {
-  // send on/off symbols for synchronization
-  for (uint8_t i = 0; i < 4; i++) {
-    PORTB = 0b0110;
-    delayMicroseconds(WIDTH);
-    PORTB = 0b0000;
-    delayMicroseconds(WIDTH*3);
-  }
+  int16_t nak = -1;
 
-  // send message
-  for (uint16_t i = 0; i < sizeof(packet); i++) {
-    for (uint8_t j = 0; j < 8; j += 2) {
-      uint8_t k = (packet[i] >> j) & 0b11;
-      PORTB = symbols[k];
+  // calculate FEC
+  rs.Encode(packet, packet);
+
+  // repeat the same packet a few times
+  while(nak == -1) {
+    // send on/off symbols for synchronization
+    for (uint8_t i = 0; i < 4; i++) {
+      PORTB = 0b0110;
       delayMicroseconds(WIDTH);
       PORTB = 0b0000;
-      delayMicroseconds(WIDTH);
+      delayMicroseconds(WIDTH*2);
+    }
+
+    // send message
+    for (uint16_t i = 0; i < sizeof(packet); i++) {
+      for (uint8_t j = 0; j < 8; j += 2) {
+        uint8_t k = (packet[i] >> j) & 0b11;
+        PORTB = symbols[k];
+        delayMicroseconds(WIDTH);
+        PORTB = 0b0000;
+        delayMicroseconds(WIDTH);
+      }
+    }
+
+    // check IR data for NAK
+    int16_t data = decodeIR();
+    if (data >= 0) {
+      nak = data;
+//      Serial.println(data);
     }
   }
 
-  // use IR data to reset packet # if necessary
-  int16_t data = decodeIR();
-  if (data >= 0) {
-    Serial.println(data);
-    packet[0] = data;
-  } else {
-    packet[0]++;
-  }
+  packet[0]++;
 }
 
 int16_t decodeIR()

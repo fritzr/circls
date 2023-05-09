@@ -10,7 +10,7 @@
 
 #define DEBUG // avoid assert
 #include "rs.hpp"
-#define NMSG 12
+#define NMSG 13
 #define NPAR 4
 RS::ReedSolomon<NMSG, NPAR> rs;
 
@@ -217,7 +217,7 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
 extern "C"
 JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
-    uint8_t data[256]; // upper bound # bytes
+    uint8_t data[256];
     int num_decoded = 0;
 
     if (width > 0 && height > 0) {
@@ -256,12 +256,12 @@ JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcess
 
         // decode if we have a full message
         int num_encoded = NMSG + NPAR;
-        if (num_demodulated >= num_encoded + 1) {
-            num_decoded = rs.Decode((data + 1), (data + 1)) ? 0 : NMSG + 1;
+        if (num_demodulated >= num_encoded) {
+            num_decoded = rs.Decode(data, data) ? 0 : NMSG;
         }
         ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
              num_demodulated, num_encoded, num_decoded,
-             data[0], num_encoded - NPAR, (data + 1),
+             data[0], NMSG - 1, (data + 1),
              data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
     }
 
