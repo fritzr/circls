@@ -8,7 +8,7 @@
 #define LOG_TAG    "native-lib"
 #define ALOG(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
-#define DEBUG // avoid assert
+#define DEBUG // avoid assert FindErrors
 #include "rs.hpp"
 #define NMSG 13
 #define NPAR 4
@@ -34,7 +34,7 @@ void flattenCols(Mat &mat, int32_t flat[][3])
     // get Mat properties
     int rows = mat.rows;
     int cols = mat.cols;
-    uint8_t *data = (uint8_t *)mat.data;
+    auto *data = (uint8_t *)mat.data;
 
     // initialize flat frame
     memset(flat, 0, sizeof(int32_t) * rows * 3);
@@ -64,7 +64,7 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
     // get Mat properties
     int rows = mat.rows;
     int cols = mat.cols;
-    uint8_t *data = (uint8_t *)mat.data;
+    auto *data = (uint8_t *)mat.data;
 
     // initialize flat frame
     memset(flat, 0, sizeof(int32_t) * cols * 3);
@@ -94,9 +94,10 @@ void flattenRows(Mat &mat, int32_t flat[][3]) {
 // takes symbol storage, a flat frame of pixels, and the number of pixels
 int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
 {
+    std::stringstream ss;
     int count = 0;          // symbol index
     int width = 0;
-    char p = '1';           // previous symbol
+    char p = ' ';           // previous symbol
 
     // convert Lab numbers to 01RGBY representation
     for (int i = 0; i < pixels; i++)
@@ -107,18 +108,19 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
         char c;
 
         // +L = white, +a = red; -a = green; -b = blue; +b = yellow;
+        if (L < 20) {
+            c = '0';
+        } else if (abs(a) < 30 && abs(b) < 30) {
+            c = '1';
+        } else {
+            if (abs(a) > abs(b)) {
+                c = (a < 0) ? 'G' : 'R';
+            } else {
+                c = (b < 0) ? 'B' : 'Y';
+            }
+        }
 
-        if (abs(a) < 15 && abs(b) < 15) {
-            c = (L < 15) ? '0' : '1';
-        }
-        if (abs(a) > abs(b))
-        {
-            c = (L < 15) ? '0' : (a < 0) ? 'G' : 'R';
-        }
-        else
-        {
-            c = (L < 15) ? '0' : (b < 0) ? 'B' : 'Y';
-        }
+        ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] << ' ' << c << ')';
 
         // same as last pixel?
         if (c != p)
@@ -136,37 +138,34 @@ int detectSymbols( uint8_t symbols[][2], int32_t frame[][3], int pixels )
         }
     }
 
+    ALOG("Frame: %s", ss.str().c_str());
     return count;
 }
 
 
 // convert symbols into bits and return as bytes
-int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
+int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
 {
-    std::stringstream ss;
     int i = 7;         // symbol index
     int j = 0;         // data index
     int k = 0;         // bit index
     int width;
 
     // look for sync sequence
-    for (; i < len; i++)
+    for (; i < symbolLen; i++)
     {
-        if (symbols[i - 7][0] == 'Y' && symbols[i - 6][0] == '0' && symbols[i - 5][0] == 'Y' && symbols[i - 4][0] == '0' && symbols[i - 3][0] == 'Y' && symbols[i - 2][0] == '0' && symbols[i - 1][0] == 'Y' && symbols[i][0] == '0') {
+        if (symbols[i - 7][0] == '1' && symbols[i - 6][0] == '0' && symbols[i - 5][0] == '1' && symbols[i - 4][0] == '0' && symbols[i - 3][0] == '1' && symbols[i - 2][0] == '0' && symbols[i - 1][0] == '1' && symbols[i][0] == '0') {
             width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) * 3 / 16;
             ALOG("Symbol Width: %d", width);
             break;
         }
     }
 
-    // access data as words to preserve byte ordering
-    uint32_t *words = (uint32_t *)data;
-    words[j] = 0;
-
     // process remaining symbols
-    while (i < len)
+    data[j] = 0;
+    while (i < symbolLen && j < dataLen)
     {
-        uint32_t b = 0;
+        uint8_t b = 0;
         switch (symbols[i][0]) {
             case 'R':
                 b = 0b00;
@@ -187,18 +186,15 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
         }
 
         if (symbols[i][1] >= width) {
-            // debugging
-            ss << (char) symbols[i][0];
-
             // insert data symbol
-            words[j] |= b << k;
+            data[j] |= b << k;
 
             // update bit index
-            k = (k + 2) % 32;
+            k = (k + 2) % 8;
 
             // start of a new word?
             if (k == 0) {
-                words[++j] = 0;
+                data[++j] = 0;
             }
 
             symbols[i][1] -= width;
@@ -208,16 +204,13 @@ int demodulate(uint8_t data[], uint8_t symbols[][2], int len)
         }
     }
 
-    ALOG("Used symbols: %s", ss.str().c_str());
-
-    // number of bytes demodulated
-    return j * 4 + k / 8;
+    return j;
 }
 
 extern "C"
 JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
-    uint8_t data[256];
+    uint8_t data[NMSG+NPAR];
     int num_decoded = 0;
 
     if (width > 0 && height > 0) {
@@ -235,39 +228,26 @@ JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcess
         flattenRows(matLab, frame);
         matLab.release();
 
-        std::stringstream ss;
-        for (int i = 0; i < num_pixels; i++)
-            ss << '(' << frame[i][0] << ',' << frame[i][1] << ',' << frame[i][2] << ')';
-        ALOG("Frame: %s", ss.str().c_str());
-
         // detect symbols
         uint8_t symbols[num_pixels][2];
         int num_symbols = detectSymbols(symbols, frame, num_pixels);
 
-        ss.str("");
-        for (int i = 0; i < num_symbols; i++) ss << setw(3) << (char) symbols[i][0];
-        ALOG("Symbols: %s", ss.str().c_str());
-        ss.str("");
-        for (int i = 0; i < num_symbols; i++) ss << setw(3) << (int) symbols[i][1];
-        ALOG("Widths : %s", ss.str().c_str());
-
         // demodulate
-        int num_demodulated = demodulate(data, symbols, num_symbols);
+        int num_encoded = demodulate(data, NMSG+NPAR, symbols, num_symbols);
 
         // decode if we have a full message
-        int num_encoded = NMSG + NPAR;
-        if (num_demodulated >= num_encoded) {
+        if (num_encoded == NMSG+NPAR) {
             num_decoded = rs.Decode(data, data) ? 0 : NMSG;
         }
-        ALOG("Demodulated: %d Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
-             num_demodulated, num_encoded, num_decoded,
+        ALOG("Encoded: %d, Decoded: %d, Id: %d, Message: %.*s %x %x %x %x",
+             num_encoded, num_decoded,
              data[0], NMSG - 1, (data + 1),
              data[num_encoded - 3], data[num_encoded - 2], data[num_encoded - 1], data[num_encoded]);
     }
 
     // return text
     jcharArray message = env.NewCharArray(num_decoded);
-    if (message != NULL) {
+    if (message != nullptr) {
         jchar buf[num_decoded];
         for (int i = 0; i < num_decoded; i++) {
             buf[i] = data[i];

@@ -64,7 +64,7 @@ void loop() {
   while(nak == -1) {
     // send on/off symbols for synchronization
     for (uint8_t i = 0; i < 4; i++) {
-      PORTB = 0b0110;
+      PORTB = 0b1110;
       delayMicroseconds(WIDTH);
       PORTB = 0b0000;
       delayMicroseconds(WIDTH*2);
