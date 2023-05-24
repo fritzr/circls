@@ -11,7 +11,6 @@ import com.obd.infrared.patterns.PatternConverter;
 import com.obd.infrared.patterns.PatternType;
 import com.obd.infrared.transmit.TransmitterType;
 
-import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -33,9 +32,9 @@ public class TxHandler {
                 try {
                     int id = mIdQueue.take();
                     int data[] = GetNAKPattern(id);
+
                     mInfraRed.transmit(patternAdapter.createTransmitInfo(
                             new PatternConverter(PatternType.Cycles, IR_CARRIER, data)));
-                    Log.d(String.valueOf(id), Arrays.toString(data));
                 } catch (InterruptedException e) {
                 }
             }
@@ -46,9 +45,11 @@ public class TxHandler {
     public void setup(Context context) {
         Logger log = new LogToConsole(TAG);
         mInfraRed = new InfraRed(context, log);
+
         TransmitterType transmitterType = mInfraRed.detect();
         mInfraRed.createTransmitter(transmitterType);
         patternAdapter = new PatternAdapter(log, transmitterType);
+
         new Thread(new Consumer()).start();
     }
 
@@ -81,7 +82,7 @@ public class TxHandler {
         // each bit is represented by a total of 4 pulses
         for (int i = 0, b = 15; b >= 0; b--)
         {
-            boolean set = ((id >> b) & 1) == 1;
+            boolean set = ((1 << b) & id) != 0;
             ret[i++] = (set ? 3 : 1) * PULSE_WIDTH; // on
             ret[i++] = (set ? 1 : 3) * PULSE_WIDTH; // off
         }

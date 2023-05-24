@@ -10,10 +10,10 @@ IRrecv irrecv(3);
 
 // common cathode values
 uint8_t symbols[] = {
-    0b0010, // red   (PIN 9)
-    0b0100, // green (PIN 10)
-    0b1000, // blue  (PIN 11)
-    0b0110  // yellow
+    0b1100, // red   (PIN 9)
+    0b1010, // green (PIN 10)
+    0b0110, // blue  (PIN 11)
+    0b1000  // yellow
   };
 
 char packet[] =
@@ -51,7 +51,7 @@ void setup() {
   // configure LED pins
   DDRB |= 0b1110;
 
-//  Serial.begin(115200);
+  Serial.begin(115200);
 }
 
 void loop() {
@@ -64,9 +64,9 @@ void loop() {
   while(nak == -1) {
     // send on/off symbols for synchronization
     for (uint8_t i = 0; i < 4; i++) {
-      PORTB = 0b1110;
-      delayMicroseconds(WIDTH);
       PORTB = 0b0000;
+      delayMicroseconds(WIDTH);
+      PORTB = 0b1110;
       delayMicroseconds(WIDTH*2);
     }
 
@@ -76,7 +76,7 @@ void loop() {
         uint8_t k = (packet[i] >> j) & 0b11;
         PORTB = symbols[k];
         delayMicroseconds(WIDTH);
-        PORTB = 0b0000;
+        PORTB = 0b1110;
         delayMicroseconds(WIDTH);
       }
     }
@@ -85,7 +85,7 @@ void loop() {
     int16_t data = decodeIR();
     if (data >= 0) {
       nak = data;
-//      Serial.println(data);
+      Serial.println(data);
     }
   }
 
