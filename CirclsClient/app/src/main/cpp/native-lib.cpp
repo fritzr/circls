@@ -162,7 +162,6 @@ int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
     }
 
     // process remaining symbols
-    data[j] = 0;
     while (i < symbolLen && j < dataLen)
     {
         uint8_t b = 0;
@@ -186,15 +185,20 @@ int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
         }
 
         if (symbols[i][1] >= width) {
+            // new byte
+            if (k == 0) {
+                data[j] = 0;
+            }
+
             // insert data symbol
             data[j] |= b << k;
 
             // update bit index
             k = (k + 2) % 8;
 
-            // start of a new word?
+            // next byte?
             if (k == 0) {
-                data[++j] = 0;
+                j++;
             }
 
             symbols[i][1] -= width;

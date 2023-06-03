@@ -16,7 +16,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class TxHandler {
     private static final String TAG = "TxHandler";
-    private static final int IR_CARRIER = 38000;
+    private static final int IR_CARRIER = 56000;
     private static final int PULSE_WIDTH = 8;
     private static final int IR_PACKET_SIZE = 32;
 
@@ -31,7 +31,7 @@ public class TxHandler {
             while (true) {
                 try {
                     int id = mIdQueue.take();
-                    int data[] = GetNAKPattern(id);
+                    int[] data = GetNAKPattern(id);
 
                     mInfraRed.transmit(patternAdapter.createTransmitInfo(
                             new PatternConverter(PatternType.Cycles, IR_CARRIER, data)));

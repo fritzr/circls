@@ -55,41 +55,36 @@ void setup() {
 }
 
 void loop() {
-  int16_t nak = -1;
-
   // calculate FEC
   rs.Encode(packet, packet);
 
-  // repeat the same packet a few times
-  while(nak == -1) {
-    // send on/off symbols for synchronization
-    for (uint8_t i = 0; i < 4; i++) {
-      PORTB = 0b0000;
+  // send on/off symbols for synchronization
+  for (uint8_t i = 0; i < 4; i++) {
+    PORTB = 0b0000;
+    delayMicroseconds(WIDTH);
+    PORTB = 0b1110;
+    delayMicroseconds(WIDTH*2);
+  }
+
+  // send message
+  for (uint16_t i = 0; i < sizeof(packet); i++) {
+    for (uint8_t j = 0; j < 8; j += 2) {
+      uint8_t k = (packet[i] >> j) & 0b11;
+      PORTB = symbols[k];
       delayMicroseconds(WIDTH);
       PORTB = 0b1110;
-      delayMicroseconds(WIDTH*2);
-    }
-
-    // send message
-    for (uint16_t i = 0; i < sizeof(packet); i++) {
-      for (uint8_t j = 0; j < 8; j += 2) {
-        uint8_t k = (packet[i] >> j) & 0b11;
-        PORTB = symbols[k];
-        delayMicroseconds(WIDTH);
-        PORTB = 0b1110;
-        delayMicroseconds(WIDTH);
-      }
-    }
-
-    // check IR data for NAK
-    int16_t data = decodeIR();
-    if (data >= 0) {
-      nak = data;
-      Serial.println(data);
+      delayMicroseconds(WIDTH);
     }
   }
 
   packet[0]++;
+
+  // check IR data for NAK
+  int16_t data = decodeIR();
+  if (data >= 0) {
+    packet[0] = data;
+    Serial.println(data);
+  }
 }
 
 int16_t decodeIR()
@@ -105,6 +100,7 @@ int16_t decodeIR()
   irrecv.resume();
 
   // check magic number
+  Serial.println(ret, BIN);
   if (ret >> 8 != 0b10100000) return -1;
 
   return ret & 0xFF;
