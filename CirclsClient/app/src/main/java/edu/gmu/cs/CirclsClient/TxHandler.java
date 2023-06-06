@@ -1,7 +1,6 @@
 package edu.gmu.cs.CirclsClient;
 
 import android.content.Context;
-import android.util.Log;
 
 import com.obd.infrared.InfraRed;
 import com.obd.infrared.log.Logger;
@@ -18,7 +17,7 @@ public class TxHandler {
     private static final String TAG = "TxHandler";
     private static final int IR_CARRIER = 56000;
     private static final int PULSE_WIDTH = 8;
-    private static final int IR_PACKET_SIZE = 32;
+    private static final int IR_PACKET_SIZE = 34;
 
     private final BlockingQueue<Integer> mIdQueue = new LinkedBlockingQueue<>();
 
@@ -80,12 +79,17 @@ public class TxHandler {
         id |= 0b10100000 << 8;
 
         // each bit is represented by a total of 4 pulses
-        for (int i = 0, b = 15; b >= 0; b--)
+        int i = 0;
+        for (int b = 15; b >= 0; b--)
         {
             boolean set = ((1 << b) & id) != 0;
             ret[i++] = (set ? 3 : 1) * PULSE_WIDTH; // on
             ret[i++] = (set ? 1 : 3) * PULSE_WIDTH; // off
         }
+
+        // tail
+        ret[i++] = PULSE_WIDTH;
+        ret[i] = PULSE_WIDTH;
 
         return ret;
     }
