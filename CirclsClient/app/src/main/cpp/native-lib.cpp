@@ -27,40 +27,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved)
     return JNI_VERSION_1_6;
 }
 
-// takes an OpenCV Matrix of 3D pixels
-// returns a single averaged column of 3D pixels
-void flattenCols(Mat &mat, int32_t flat[][3])
-{
-    // get Mat properties
-    int rows = mat.rows;
-    int cols = mat.cols;
-    auto *data = (uint8_t *)mat.data;
-
-    // initialize flat frame
-    memset(flat, 0, sizeof(int32_t) * rows * 3);
-
-    // for each row
-    for (int i = 0; i < rows; i++)
-    {
-        // sum up the entire row
-        for (int j = 0; j < cols; j++)
-        {
-            flat[i][0] += (*data++);
-            flat[i][1] += (*data++);
-            flat[i][2] += (*data++);
-        }
-
-        // calculate row average and adjust
-        flat[i][0] /= cols;
-        flat[i][1] = flat[i][1] / cols - 128;
-        flat[i][2] = flat[i][2] / cols - 128;
-    }
-}
-
 
 // takes an OpenCV Matrix of 3D pixels
-// returns a single averaged row of 3D pixels in reverse order
-void flattenRows(Mat &mat, int32_t flat[][3]) {
+// returns a single averaged row of 3D pixels
+void flattenMatrix(Mat &mat, int32_t flat[][3]) {
     // get Mat properties
     int rows = mat.rows;
     int cols = mat.cols;
@@ -211,6 +181,7 @@ int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
     return j;
 }
 
+
 extern "C"
 JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcessor(JNIEnv &env, jobject obj,
                                                                            jint width, jint height, jobject pixels) {
@@ -229,7 +200,7 @@ JNIEXPORT jcharArray JNICALL Java_edu_gmu_cs_CirclsClient_RxHandler_FrameProcess
         // flatten frame
         int num_pixels = width;
         int32_t frame[num_pixels][3];
-        flattenRows(matLab, frame);
+        flattenMatrix(matLab, frame);
         matLab.release();
 
         // detect symbols

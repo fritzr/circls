@@ -58,8 +58,7 @@
     </facet>
   </component>
   <component name="NewModuleRootManager" LANGUAGE_LEVEL="JDK_1_8">
-    <output url="file://$MODULE_DIR$/../../../../../OpenCV-android-sdk/sdk/build/intermediates/javac/debug/classes" />
-    <output-test url="file://$MODULE_DIR$/../../../../../OpenCV-android-sdk/sdk/build/intermediates/javac/debugUnitTest/classes" />
+    <output-test url="file://$MODULE_DIR$/../../../../../OpenCV-android-sdk/sdk/build/intermediates/javac/debugAndroidTest/classes" />
     <exclude-output />
     <content url="file://$MODULE_DIR$/../../../../../OpenCV-android-sdk/sdk/build/generated/aidl_source_output_dir/debugAndroidTest/out" />
     <content url="file://$MODULE_DIR$/../../../../../OpenCV-android-sdk/sdk/build/generated/ap_generated_sources/debugAndroidTest/out" />
