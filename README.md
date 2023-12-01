@@ -13,8 +13,8 @@ git clone https://github.com/fritzr/circls
 * Download and unzip OpenCV for Android
 
 ```bash
-wget https://github.com/opencv/opencv/releases/download/4.7.0/opencv-4.7.0-android-sdk.zip
-unzip opencv-4.7.0-android-sdk.zip
+wget https://github.com/opencv/opencv/releases/download/4.8.0/opencv-4.8.0-android-sdk.zip
+unzip opencv-4.8.0-android-sdk.zip
 ```
 
 * Apply CIRCLS opencv patch to orient the camera correctly

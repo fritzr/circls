@@ -119,23 +119,32 @@ int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
     int i = 7;         // symbol index
     int j = 0;         // data index
     int k = 0;         // bit index
-    int width;
-
-    // look for sync sequence
-    for (; i < symbolLen; i++)
-    {
-        if (symbols[i - 7][0] == '1' && symbols[i - 6][0] == '0' && symbols[i - 5][0] == '1' && symbols[i - 4][0] == '0' && symbols[i - 3][0] == '1' && symbols[i - 2][0] == '0' && symbols[i - 1][0] == '1' && symbols[i][0] == '0') {
-            width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) * 3 / 16;
-            ALOG("Symbol Width: %d", width);
-            break;
-        }
-    }
+    int width = INT_MAX;
 
     // process remaining symbols
     while (i < symbolLen && j < dataLen)
     {
         uint8_t b = 0;
         switch (symbols[i][0]) {
+            default:
+                // look for sync sequence
+                if (width == INT_MAX
+                    && symbols[i - 7][0] == '1'
+                    && symbols[i - 6][0] == '0'
+                    && symbols[i - 5][0] == '1'
+                    && symbols[i - 4][0] == '0'
+                    && symbols[i - 3][0] == '1'
+                    && symbols[i - 2][0] == '0'
+                    && symbols[i - 1][0] == '1'
+                    && symbols[i][0] == '0')
+                {
+                    width = (symbols[i - 7][1] + symbols[i - 5][1] + symbols[i - 3][1] + symbols[i - 1][1]) * 3 / 16;
+                    ALOG("Symbol Width: %d", width);
+                }
+
+                // non-data symbol
+                i++;
+                continue;
             case 'R':
                 b = 0b00;
                 break;
@@ -148,10 +157,6 @@ int demodulate(uint8_t data[], int dataLen, uint8_t symbols[][2], int symbolLen)
             case 'Y':
                 b = 0b11;
                 break;
-            default:
-                // non-data symbol
-                i++;
-                continue;
         }
 
         if (symbols[i][1] >= width) {
