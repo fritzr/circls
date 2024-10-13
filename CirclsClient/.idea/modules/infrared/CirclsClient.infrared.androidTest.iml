@@ -7,8 +7,6 @@
         <option name="ALLOW_USER_CONFIGURATION" value="false" />
         <option name="MANIFEST_FILE_RELATIVE_PATH" value="/src/main/AndroidManifest.xml" />
         <option name="RES_FOLDER_RELATIVE_PATH" value="/src/main/res" />
-        <option name="RES_FOLDERS_RELATIVE_PATH" value="" />
-        <option name="TEST_RES_FOLDERS_RELATIVE_PATH" value="file://$MODULE_DIR$/../../../infrared/src/androidTest/res;file://$MODULE_DIR$/../../../infrared/src/androidTestDebug/res;file://$MODULE_DIR$/../../../infrared/build/generated/res/rs/androidTest/debug;file://$MODULE_DIR$/../../../infrared/build/generated/res/resValues/androidTest/debug" />
         <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/src/main/assets" />
         <option name="PROJECT_TYPE" value="1" />
       </configuration>
@@ -18,11 +16,17 @@
     <output-test url="file://$MODULE_DIR$/../../../infrared/build/intermediates/javac/debugAndroidTest/classes" />
     <exclude-output />
     <content url="file://$MODULE_DIR$/../../../infrared/build/generated/aidl_source_output_dir/debugAndroidTest/out" />
-    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/ap_generated_sources/debugAndroidTest/out" />
+    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/ap_generated_sources/debugAndroidTest/out">
+      <sourceFolder url="file://$MODULE_DIR$/../../../infrared/build/generated/ap_generated_sources/debugAndroidTest/out" isTestSource="true" generated="true" />
+    </content>
     <content url="file://$MODULE_DIR$/../../../infrared/build/generated/renderscript_source_output_dir/debugAndroidTest/out" />
-    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/res/resValues/androidTest/debug" />
+    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/res/resValues/androidTest/debug">
+      <sourceFolder url="file://$MODULE_DIR$/../../../infrared/build/generated/res/resValues/androidTest/debug" type="java-test-resource" generated="true" />
+    </content>
     <content url="file://$MODULE_DIR$/../../../infrared/build/generated/res/rs/androidTest/debug" />
-    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/source/buildConfig/androidTest/debug" />
+    <content url="file://$MODULE_DIR$/../../../infrared/build/generated/source/buildConfig/androidTest/debug">
+      <sourceFolder url="file://$MODULE_DIR$/../../../infrared/build/generated/source/buildConfig/androidTest/debug" isTestSource="true" generated="true" />
+    </content>
     <content url="file://$MODULE_DIR$/../../../infrared/src/androidTest" />
     <content url="file://$MODULE_DIR$/../../../infrared/src/androidTestDebug" />
     <orderEntry type="jdk" jdkName="Android API 23 Platform" jdkType="Android SDK" />
